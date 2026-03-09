@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    background-color: #171518;
+    color: #e0ddd8;
+    font-family: 'Ubuntu', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Textarea placeholder opacity via CSS variable */
+  textarea::placeholder {
+    opacity: var(--placeholder-opacity, 0.3);
+    transition: opacity 0.5s ease;
+  }
+
+  /* Minimal scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+}
+
+@layer utilities {
+  .streaming-text {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Staggered animation delays for hero entrance */
+  .delay-100 { animation-delay: 0.10s; }
+  .delay-200 { animation-delay: 0.20s; }
+  .delay-300 { animation-delay: 0.32s; }
+  .delay-400 { animation-delay: 0.44s; }
+  .delay-500 { animation-delay: 0.56s; }
+}

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SN - Resonant Membrane</title>
+    <meta name='description' content='Shahar Naor - Freelance design services in the fields of UI/UX, branding, video compositing &amp; effects, commercials and illustrations'>
+    <meta property="og:site_name" content="Shahar Naor">
+    <meta property="og:title" content="Resonant Membrane Playground">
+    <meta property="og:description" content="Interactive generative physics visuals built with p5.js and Claude Code.">
+    <meta property="og:image" content="https://shaharnaor.com/imgs/resonant-membrane.png">
+    <meta property="og:url" content="https://shaharnaor.com/playground/resonant-membrane.html">
+    <meta name="twitter:card" content="summary_large_image">
+    
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-TJ9LXQJ2');</script>
+    <!-- End Google Tag Manager -->
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; position: relative; z-index: 1; }
+        #logo {
+            position: fixed; top: 18px; right: 20px;
+            opacity: 0.7;
+            z-index: 10;
+            transition: opacity 0.2s;
+        }
+        #logo:hover { opacity: 1; }
+        #hud {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center; gap: 22px;
+            font-family: 'Courier New', monospace; font-size: 11px;
+            color: rgba(255,255,255,0.32);
+            pointer-events: none;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 24px;
+            z-index: 10;
+        }
+        .val { color: rgba(255,255,255,0.62); }
+        #grab-btn {
+            pointer-events: all;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.7);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s, color 0.18s;
+        }
+        #grab-btn:hover {
+            background: rgba(255,255,255,0.18);
+            border-color: rgba(255,255,255,0.5);
+            color: #fff;
+        }
+        #grab-btn.grabbed {
+            background: rgba(80,220,140,0.18);
+            border-color: rgba(80,220,140,0.6);
+            color: rgba(80,220,140,1);
+        }
+    </style>
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TJ9LXQJ2"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="hud">
+    <span id="hud-x">X: —</span>
+    <span>·</span>
+    <span id="hud-y">Y: —</span>
+    <span>·</span>
+    <span style="opacity:0.35">click canvas to rerandomize</span>
+    <span>·</span>
+    <button id="grab-btn">⬇ Grab Anime</button>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+// RESONANT MEMBRANE
+// X and Y mouse axes each independently drive a wave param.
+// Click canvas to detonate a new universe.
+// "Grab Anime" exports a standalone HTML with mouse frozen
+// at the current position — live animation, no click reset.
+// ═══════════════════════════════════════════════════════
+
+function mulberry32(seed) {
+    let s = seed >>> 0;
+    return function() {
+        s |= 0; s = s + 0x6D2B79F5 | 0;
+        let t = Math.imul(s ^ s >>> 15, 1 | s);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+const PALETTES = [
+    { bg: [2,4,14],    a: [30,80,200],   b: [0,220,180],   c: [255,255,255] },
+    { bg: [8,3,2],     a: [220,60,20],   b: [255,180,30],  c: [255,240,200] },
+    { bg: [4,2,12],    a: [100,20,200],  b: [220,80,255],  c: [200,230,255] },
+    { bg: [3,8,14],    a: [20,140,220],  b: [180,240,255], c: [255,255,255] },
+    { bg: [2,8,2],     a: [20,200,80],   b: [180,255,60],  c: [255,255,200] },
+    { bg: [10,4,6],    a: [200,80,100],  b: [255,160,120], c: [255,230,220] },
+    { bg: [4,4,6],     a: [80,90,120],   b: [160,170,210], c: [240,244,255] },
+    { bg: [10,5,0],    a: [200,100,0],   b: [255,200,0],   c: [255,255,180] },
+    { bg: [8,2,10],    a: [180,0,120],   b: [255,60,200],  c: [255,200,255] },
+    { bg: [2,8,8],     a: [0,160,140],   b: [100,255,220], c: [220,255,250] },
+];
+
+const AXIS_ROLES = [
+    { id: 'srcFreq',      label: 'wave frequency'  },
+    { id: 'srcCount',     label: 'source count'    },
+    { id: 'timeScale',    label: 'time speed'      },
+    { id: 'contours',     label: 'contour levels'  },
+    { id: 'lineWeight',   label: 'line weight'     },
+    { id: 'rotation',     label: 'field rotation'  },
+    { id: 'colorShift',   label: 'color shift'     },
+    { id: 'amplitude',    label: 'amplitude'       },
+    { id: 'interference', label: 'interference'    },
+    { id: 'drift',        label: 'source drift'    },
+];
+
+function randomizeAll(seed) {
+    const r = mulberry32(seed);
+    const pal = PALETTES[Math.floor(r() * PALETTES.length)];
+    const rolesCopy = [...AXIS_ROLES];
+    const xi = Math.floor(r() * rolesCopy.length);
+    const xRole = rolesCopy.splice(xi, 1)[0];
+    const yRole = rolesCopy[Math.floor(r() * rolesCopy.length)];
+
+    const srcCount = 2 + Math.floor(r() * 4);
+    const sources = [];
+    for (let i = 0; i < srcCount; i++) {
+        sources.push({
+            nx: 0.1 + r() * 0.8, ny: 0.1 + r() * 0.8,
+            freq: 0.8 + r() * 3.5,
+            phase: r() * Math.PI * 2,
+            amp: 0.4 + r() * 0.8,
+            driftX: (r()-0.5)*0.0006, driftY: (r()-0.5)*0.0006,
+            freqDrift: (r()-0.5)*0.0002,
+        });
+    }
+
+    const styleRoll = r();
+    const style = styleRoll < 0.4 ? 'contour' : styleRoll < 0.7 ? 'field' : 'hybrid';
+    return {
+        seed, pal, xRole, yRole, sources, style,
+        baseContours:   4  + Math.floor(r() * 12),
+        baseLineWeight: 0.4 + r() * 1.8,
+        glowLayers:     Math.floor(r() * 3),
+        baseFieldRes:   3  + Math.floor(r() * 5),
+        baseTimeScale:  0.004 + r() * 0.02,
+        colorMode:      Math.floor(r() * 3),
+        noiseAmt:       r() * 0.1,
+        noiseScale:     0.003 + r() * 0.012,
+        baseRotation:   r() * Math.PI * 2,
+        rotateSpeed:    (r()-0.5)*0.0003,
+        baseSrcFreq:    0.03,
+        pulseMode:      r() < 0.45,
+        pulseSpeed:     0.02 + r() * 0.07,
+    };
+}
+
+function interferenceVal(x, y, t, sources, W, H, rotation, freqMult, ampMult) {
+    const cx=W/2, cy=H/2, dx=x-cx, dy=y-cy;
+    const rx=dx*Math.cos(rotation)-dy*Math.sin(rotation)+cx;
+    const ry=dx*Math.sin(rotation)+dy*Math.cos(rotation)+cy;
+    let val=0;
+    for (const src of sources) {
+        const sx=src.nx*W, sy=src.ny*H;
+        const dist=Math.sqrt((rx-sx)**2+(ry-sy)**2);
+        val+=src.amp*ampMult*Math.sin(dist*src.freq*freqMult-t+src.phase);
+    }
+    return val/sources.length;
+}
+
+function resolveAxis(roleId, v) {
+    switch(roleId) {
+        case 'srcFreq':      return { freqMult:    0.01+v*0.09 };
+        case 'srcCount':     return { srcCountMod: Math.max(1,Math.round(v*5)) };
+        case 'timeScale':    return { timeScale:   0.001+v*0.06 };
+        case 'contours':     return { contours:    2+Math.round(v*22) };
+        case 'lineWeight':   return { lineWeight:  0.2+v*4.0 };
+        case 'rotation':     return { rotation:    (v-0.5)*Math.PI*3 };
+        case 'colorShift':   return { colorShift:  v };
+        case 'amplitude':    return { ampMult:     0.1+v*2.5 };
+        case 'interference': return { freqMult:    0.005+v*v*0.12 };
+        case 'drift':        return { driftMult:   v*3.0 };
+        default:             return {};
+    }
+}
+
+// ── Grab Anime: generate standalone HTML ─────────────
+function generateGrabHTML(params) {
+    const p = params;
+    const pal = p.pal;
+    const srcStr = JSON.stringify(p.sources.map(s => ({...s})));
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resonant Membrane — grabbed</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"><\/script>
+<style>
+* { margin:0;padding:0;box-sizing:border-box; }
+html,body { width:100%;height:100%;overflow:hidden;background:#000; }
+canvas { display:block; }
+#hud {
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    font-family:'Courier New',monospace; font-size:11px;
+    color:rgba(255,255,255,0.32); pointer-events:none; letter-spacing:0.07em;
+    white-space:nowrap; background:rgba(0,0,0,0.5); padding:10px 24px;
+}
+.val { color:rgba(255,255,255,0.62); }
+</style>
+</head>
+<body>
+<div id="hud">
+    <span id="hud-x">X: —</span>
+    <span>·</span>
+    <span id="hud-y">Y: —</span>
+</div>
+<script>
+// Grabbed from Resonant Membrane — seed: ${p.seed}
+// X axis → ${p.xRole.label}  |  Y axis → ${p.yRole.label}
+
+const PARAMS = {
+    seed: ${p.seed},
+    pal: ${JSON.stringify(pal)},
+    xRole: ${JSON.stringify(p.xRole)},
+    yRole: ${JSON.stringify(p.yRole)},
+    style: "${p.style}",
+    baseContours: ${p.baseContours},
+    baseLineWeight: ${p.baseLineWeight},
+    glowLayers: ${p.glowLayers},
+    baseFieldRes: ${p.baseFieldRes},
+    baseTimeScale: ${p.baseTimeScale},
+    colorMode: ${p.colorMode},
+    noiseAmt: ${p.noiseAmt},
+    noiseScale: ${p.noiseScale},
+    baseRotation: ${p.baseRotation},
+    rotateSpeed: ${p.rotateSpeed},
+    baseSrcFreq: ${p.baseSrcFreq},
+};
+
+let sources = ${srcStr};
+
+function interferenceVal(x,y,t,srcs,W,H,rot,fm,am){
+    const cx=W/2,cy=H/2,dx=x-cx,dy=y-cy;
+    const rx=dx*Math.cos(rot)-dy*Math.sin(rot)+cx;
+    const ry=dx*Math.sin(rot)+dy*Math.cos(rot)+cy;
+    let v=0;
+    for(const s of srcs){
+        const dist=Math.sqrt((rx-s.nx*W)**2+(ry-s.ny*H)**2);
+        v+=s.amp*am*Math.sin(dist*s.freq*fm-t+s.phase);
+    }
+    return v/srcs.length;
+}
+
+function resolveAxis(roleId,v){
+    switch(roleId){
+        case 'srcFreq':      return {freqMult:0.01+v*0.09};
+        case 'srcCount':     return {srcCountMod:Math.max(1,Math.round(v*5))};
+        case 'timeScale':    return {timeScale:0.001+v*0.06};
+        case 'contours':     return {contours:2+Math.round(v*22)};
+        case 'lineWeight':   return {lineWeight:0.2+v*4.0};
+        case 'rotation':     return {rotation:(v-0.5)*Math.PI*3};
+        case 'colorShift':   return {colorShift:v};
+        case 'amplitude':    return {ampMult:0.1+v*2.5};
+        case 'interference': return {freqMult:0.005+v*v*0.12};
+        case 'drift':        return {driftMult:v*3.0};
+        default:             return {};
+    }
+}
+
+new p5(function(sk){
+    let W,H,pg,t=0;
+    let mx=0.5,my=0.5,smx=0.5,smy=0.5;
+
+    sk.setup=function(){
+        W=sk.windowWidth; H=sk.windowHeight;
+        sk.createCanvas(W,H).parent(document.body);
+        sk.pixelDensity(1); sk.noSmooth(); sk.frameRate(60);
+        sk.noiseSeed(PARAMS.seed);
+        pg=sk.createGraphics(W,H);
+        pg.pixelDensity(1); pg.colorMode(sk.RGB,255,255,255,255); pg.noSmooth();
+        pg.background(PARAMS.pal.bg[0],PARAMS.pal.bg[1],PARAMS.pal.bg[2]);
+    };
+
+    sk.mouseMoved  =function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    sk.mouseDragged=function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    // no mousePressed — click does nothing
+
+    sk.windowResized=function(){
+        W=sk.windowWidth; H=sk.windowHeight; sk.resizeCanvas(W,H);
+        pg.remove(); pg=sk.createGraphics(W,H);
+        pg.pixelDensity(1); pg.colorMode(sk.RGB,255,255,255,255); pg.noSmooth();
+        pg.background(PARAMS.pal.bg[0],PARAMS.pal.bg[1],PARAMS.pal.bg[2]);
+    };
+
+    sk.draw=function(){
+        t++;
+        smx+=(mx-smx)*0.04; smy+=(my-smy)*0.04;
+
+        const p=PARAMS, pal=p.pal, bg=pal.bg;
+        const rx2=resolveAxis(p.xRole.id,smx);
+        const ry2=resolveAxis(p.yRole.id,smy);
+        const res=Object.assign({},rx2,ry2);
+
+        const freqMult  =res.freqMult   ??p.baseSrcFreq;
+        const ampMult   =res.ampMult    ??1.0;
+        const timeScale =res.timeScale  ??p.baseTimeScale;
+        const contours  =res.contours   ??p.baseContours;
+        const lineWeight=res.lineWeight ??p.baseLineWeight;
+        const rotation  =res.rotation!==undefined?res.rotation:(p.baseRotation+t*p.rotateSpeed);
+        const colorShift=res.colorShift ??0;
+        const driftMult =res.driftMult  ??1.0;
+        const srcCountMod=res.srcCountMod??sources.length;
+        const activeSrcs=sources.slice(0,Math.min(srcCountMod,sources.length));
+        const tScaled=t*timeScale*60;
+
+        for(const src of sources){
+            src.nx=Math.max(0.05,Math.min(0.95,src.nx+src.driftX*driftMult));
+            src.ny=Math.max(0.05,Math.min(0.95,src.ny+src.driftY*driftMult));
+            src.freq+=src.freqDrift;
+            if(src.freq<0.3||src.freq>5.5) src.freqDrift*=-1;
+            if(src.nx<=0.05||src.nx>=0.95) src.driftX*=-1;
+            if(src.ny<=0.05||src.ny>=0.95) src.driftY*=-1;
+        }
+
+        if(p.style==='field'||p.style==='hybrid'){
+            const fr=p.baseFieldRes; pg.loadPixels();
+            const cols=Math.ceil(W/fr),rows=Math.ceil(H/fr);
+            for(let c=0;c<cols;c++){
+                for(let r=0;r<rows;r++){
+                    const x=c*fr+fr*0.5,y=r*fr+fr*0.5;
+                    let v=interferenceVal(x,y,tScaled,activeSrcs,W,H,rotation,freqMult,ampMult);
+                    if(p.noiseAmt>0) v+=(sk.noise(x*p.noiseScale,y*p.noiseScale,t*0.005)-0.5)*p.noiseAmt*2;
+                    const norm=Math.max(0,Math.min(1,(v+1)*0.5+colorShift*0.3-0.15));
+                    let rr,g,b;
+                    if(p.colorMode===0){const t2=norm<0.5?norm*2:(norm-0.5)*2;const c1=norm<0.5?bg:pal.a,c2=norm<0.5?pal.a:pal.c;rr=c1[0]+(c2[0]-c1[0])*t2;g=c1[1]+(c2[1]-c1[1])*t2;b=c1[2]+(c2[2]-c1[2])*t2;}
+                    else if(p.colorMode===1){const t3=norm*3;if(t3<1){const f=t3;rr=bg[0]+(pal.a[0]-bg[0])*f;g=bg[1]+(pal.a[1]-bg[1])*f;b=bg[2]+(pal.a[2]-bg[2])*f;}else if(t3<2){const f=t3-1;rr=pal.a[0]+(pal.b[0]-pal.a[0])*f;g=pal.a[1]+(pal.b[1]-pal.a[1])*f;b=pal.a[2]+(pal.b[2]-pal.a[2])*f;}else{const f=t3-2;rr=pal.b[0]+(pal.c[0]-pal.b[0])*f;g=pal.b[1]+(pal.c[1]-pal.b[1])*f;b=pal.b[2]+(pal.c[2]-pal.b[2])*f;}}
+                    else{const band=Math.floor(norm*6)/6;rr=bg[0]+(pal.b[0]-bg[0])*band;g=bg[1]+(pal.b[1]-bg[1])*band;b=bg[2]+(pal.b[2]-bg[2])*band;}
+                    for(let py=0;py<fr&&(r*fr+py)<H;py++){for(let px=0;px<fr&&(c*fr+px)<W;px++){const pidx=((r*fr+py)*W+(c*fr+px))*4;pg.pixels[pidx]=Math.round(rr);pg.pixels[pidx+1]=Math.round(g);pg.pixels[pidx+2]=Math.round(b);pg.pixels[pidx+3]=255;}}
+                }
+            }
+            pg.updatePixels(); sk.image(pg,0,0);
+        } else { sk.background(bg[0],bg[1],bg[2]); }
+
+        if(p.style==='contour'||p.style==='hybrid'){
+            const gridStep=Math.max(W/150,4);
+            for(let li=0;li<contours;li++){
+                const threshold=-1+(li/(contours-1))*2;
+                const tl=(li+colorShift*contours)%contours/Math.max(contours-1,1);
+                let lr,lg,lb;
+                if(tl<0.5){const f=tl*2;lr=pal.a[0]+(pal.b[0]-pal.a[0])*f;lg=pal.a[1]+(pal.b[1]-pal.a[1])*f;lb=pal.a[2]+(pal.b[2]-pal.a[2])*f;}
+                else{const f=(tl-0.5)*2;lr=pal.b[0]+(pal.c[0]-pal.b[0])*f;lg=pal.b[1]+(pal.c[1]-pal.b[1])*f;lb=pal.b[2]+(pal.c[2]-pal.b[2])*f;}
+                for(let gl=p.glowLayers;gl>=0;gl--){
+                    sk.stroke(lr,lg,lb,gl===0?220:Math.max(30-gl*10,8));
+                    sk.strokeWeight(gl===0?lineWeight:lineWeight+gl*2.5);
+                    sk.noFill();
+                    for(let y=0;y<H-gridStep;y+=gridStep){
+                        for(let x=0;x<W-gridStep;x+=gridStep){
+                            const v00=interferenceVal(x,y,tScaled,activeSrcs,W,H,rotation,freqMult,ampMult);
+                            const v10=interferenceVal(x+gridStep,y,tScaled,activeSrcs,W,H,rotation,freqMult,ampMult);
+                            const v01=interferenceVal(x,y+gridStep,tScaled,activeSrcs,W,H,rotation,freqMult,ampMult);
+                            const v11=interferenceVal(x+gridStep,y+gridStep,tScaled,activeSrcs,W,H,rotation,freqMult,ampMult);
+                            const c00=v00>threshold?1:0,c10=v10>threshold?1:0,c01=v01>threshold?1:0,c11=v11>threshold?1:0;
+                            const ci=c00|(c10<<1)|(c01<<2)|(c11<<3);
+                            if(ci===0||ci===15) continue;
+                            function l1d(a,b,th){return Math.abs(b-a)<0.0001?0.5:(th-a)/(b-a);}
+                            const tT=l1d(v00,v10,threshold),tB=l1d(v01,v11,threshold),tL=l1d(v00,v01,threshold),tR=l1d(v10,v11,threshold);
+                            const top={x:x+tT*gridStep,y},bot={x:x+tB*gridStep,y:y+gridStep},lft={x,y:y+tL*gridStep},rgt={x:x+gridStep,y:y+tR*gridStep};
+                            sk.beginShape(sk.LINES);
+                            switch(ci){
+                                case 1:case 14:sk.vertex(top.x,top.y);sk.vertex(lft.x,lft.y);break;
+                                case 2:case 13:sk.vertex(top.x,top.y);sk.vertex(rgt.x,rgt.y);break;
+                                case 3:case 12:sk.vertex(lft.x,lft.y);sk.vertex(rgt.x,rgt.y);break;
+                                case 4:case 11:sk.vertex(bot.x,bot.y);sk.vertex(lft.x,lft.y);break;
+                                case 5:case 10:sk.vertex(top.x,top.y);sk.vertex(bot.x,bot.y);break;
+                                case 6:case 9:sk.vertex(top.x,top.y);sk.vertex(lft.x,lft.y);sk.vertex(bot.x,bot.y);sk.vertex(rgt.x,rgt.y);break;
+                                case 7:case 8:sk.vertex(bot.x,bot.y);sk.vertex(rgt.x,rgt.y);break;
+                            }
+                            sk.endShape();
+                        }
+                    }
+                }
+            }
+        }
+
+        document.getElementById('hud-x').innerHTML='X <span class="val">'+smx.toFixed(2)+'<\/span> → '+p.xRole.label;
+        document.getElementById('hud-y').innerHTML='Y <span class="val">'+smy.toFixed(2)+'<\/span> → '+p.yRole.label;
+    };
+});
+<\/script>
+</body>
+</html>`;
+}
+
+// ── Main sketch ────────────────────────────────────
+new p5(function(sk) {
+    let W, H, params, pg, t = 0;
+    let mx = 0.5, my = 0.5, smx = 0.5, smy = 0.5;
+    let clickLocked = false; // set true after grab
+
+    function init() {
+        sk.noiseSeed(params.seed);
+        if (pg) pg.remove();
+        pg = sk.createGraphics(W, H);
+        pg.pixelDensity(1);
+        pg.colorMode(sk.RGB, 255, 255, 255, 255);
+        pg.noSmooth();
+        pg.background(params.pal.bg[0], params.pal.bg[1], params.pal.bg[2]);
+        t = 0;
+        clickLocked = false;
+        document.getElementById('grab-btn').classList.remove('grabbed');
+        document.getElementById('grab-btn').textContent = '⬇ Grab Anime';
+    }
+
+    sk.setup = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.createCanvas(W, H).parent(document.body);
+        sk.pixelDensity(1); sk.noSmooth(); sk.frameRate(60);
+        params = randomizeAll(Math.floor(Math.random()*999999));
+        init();
+    };
+
+    sk.mouseMoved   = function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    sk.mouseDragged = function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+
+    sk.mousePressed = function() {
+        // Don't rerandomize if click is on the button
+        if (sk.mouseY > H - 60) return;
+        if (clickLocked) return;
+        params = randomizeAll(Math.floor(Math.random()*999999));
+        init();
+    };
+
+    sk.windowResized = function() { W=sk.windowWidth; H=sk.windowHeight; sk.resizeCanvas(W,H); init(); };
+
+    // Grab button
+    document.getElementById('grab-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        clickLocked = true;
+
+        const html = generateGrabHTML(params);
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `membrane-${params.seed}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        // Visual feedback
+        const btn = document.getElementById('grab-btn');
+        btn.classList.add('grabbed');
+        btn.textContent = '✓ Grabbed!';
+        setTimeout(() => {
+            btn.textContent = '⬇ Grab Anime';
+            // keep clickLocked = true so click still won't reset
+            // user must manually click to rerandomize only after un-locking
+            // Actually: allow re-grab on same universe, but re-enable click reset too
+            clickLocked = false;
+        }, 2000);
+    });
+
+    sk.draw = function() {
+        t++;
+        smx += (mx-smx)*0.04;
+        smy += (my-smy)*0.04;
+
+        const p = params;
+        const pal = p.pal, bg = pal.bg;
+
+        const rx2 = resolveAxis(p.xRole.id, smx);
+        const ry2 = resolveAxis(p.yRole.id, smy);
+        const res = Object.assign({}, rx2, ry2);
+
+        const freqMult   = res.freqMult    ?? p.baseSrcFreq;
+        const ampMult    = res.ampMult     ?? 1.0;
+        const timeScale  = res.timeScale   ?? p.baseTimeScale;
+        const contours   = res.contours    ?? p.baseContours;
+        const lineWeight = res.lineWeight  ?? p.baseLineWeight;
+        const rotation   = res.rotation !== undefined ? res.rotation : (p.baseRotation + t*p.rotateSpeed);
+        const colorShift = res.colorShift  ?? 0;
+        const driftMult  = res.driftMult   ?? 1.0;
+        const srcCountMod= res.srcCountMod ?? p.sources.length;
+        const activeSources = p.sources.slice(0, Math.min(srcCountMod, p.sources.length));
+
+        for (const src of p.sources) {
+            src.nx=Math.max(0.05,Math.min(0.95,src.nx+src.driftX*driftMult));
+            src.ny=Math.max(0.05,Math.min(0.95,src.ny+src.driftY*driftMult));
+            src.freq+=src.freqDrift;
+            if(src.freq<0.3||src.freq>5.5) src.freqDrift*=-1;
+            if(src.nx<=0.05||src.nx>=0.95) src.driftX*=-1;
+            if(src.ny<=0.05||src.ny>=0.95) src.driftY*=-1;
+        }
+
+        const tScaled = t*timeScale*60;
+
+        if (p.style==='field'||p.style==='hybrid') {
+            const fieldRes=p.baseFieldRes;
+            pg.loadPixels();
+            const cols2=Math.ceil(W/fieldRes), rows2=Math.ceil(H/fieldRes);
+            for(let col=0;col<cols2;col++){
+                for(let row=0;row<rows2;row++){
+                    const x=col*fieldRes+fieldRes*0.5, y=row*fieldRes+fieldRes*0.5;
+                    let v=interferenceVal(x,y,tScaled,activeSources,W,H,rotation,freqMult,ampMult);
+                    if(p.noiseAmt>0) v+=(sk.noise(x*p.noiseScale,y*p.noiseScale,t*0.005)-0.5)*p.noiseAmt*2;
+                    const norm=Math.max(0,Math.min(1,(v+1)*0.5+colorShift*0.3-0.15));
+                    let r2,g,b;
+                    if(p.colorMode===0){
+                        const t2=norm<0.5?norm*2:(norm-0.5)*2;
+                        const c1=norm<0.5?bg:pal.a, c2=norm<0.5?pal.a:pal.c;
+                        r2=c1[0]+(c2[0]-c1[0])*t2; g=c1[1]+(c2[1]-c1[1])*t2; b=c1[2]+(c2[2]-c1[2])*t2;
+                    } else if(p.colorMode===1){
+                        const t3=norm*3;
+                        if(t3<1){const f=t3;r2=bg[0]+(pal.a[0]-bg[0])*f;g=bg[1]+(pal.a[1]-bg[1])*f;b=bg[2]+(pal.a[2]-bg[2])*f;}
+                        else if(t3<2){const f=t3-1;r2=pal.a[0]+(pal.b[0]-pal.a[0])*f;g=pal.a[1]+(pal.b[1]-pal.a[1])*f;b=pal.a[2]+(pal.b[2]-pal.a[2])*f;}
+                        else{const f=t3-2;r2=pal.b[0]+(pal.c[0]-pal.b[0])*f;g=pal.b[1]+(pal.c[1]-pal.b[1])*f;b=pal.b[2]+(pal.c[2]-pal.b[2])*f;}
+                    } else {
+                        const band=Math.floor(norm*6)/6;
+                        r2=bg[0]+(pal.b[0]-bg[0])*band; g=bg[1]+(pal.b[1]-bg[1])*band; b=bg[2]+(pal.b[2]-bg[2])*band;
+                    }
+                    for(let py2=0;py2<fieldRes&&(row*fieldRes+py2)<H;py2++){
+                        for(let px2=0;px2<fieldRes&&(col*fieldRes+px2)<W;px2++){
+                            const pidx=((row*fieldRes+py2)*W+(col*fieldRes+px2))*4;
+                            pg.pixels[pidx]=Math.round(r2); pg.pixels[pidx+1]=Math.round(g);
+                            pg.pixels[pidx+2]=Math.round(b); pg.pixels[pidx+3]=255;
+                        }
+                    }
+                }
+            }
+            pg.updatePixels();
+            sk.image(pg,0,0);
+        } else {
+            sk.background(bg[0],bg[1],bg[2]);
+        }
+
+        if (p.style==='contour'||p.style==='hybrid') {
+            const gridStep=Math.max(W/150,4);
+            for(let li=0;li<contours;li++){
+                const threshold=-1+(li/(contours-1))*2;
+                const tl=(li+colorShift*contours)%contours/Math.max(contours-1,1);
+                let lr,lg,lb;
+                if(tl<0.5){const f=tl*2;lr=pal.a[0]+(pal.b[0]-pal.a[0])*f;lg=pal.a[1]+(pal.b[1]-pal.a[1])*f;lb=pal.a[2]+(pal.b[2]-pal.a[2])*f;}
+                else{const f=(tl-0.5)*2;lr=pal.b[0]+(pal.c[0]-pal.b[0])*f;lg=pal.b[1]+(pal.c[1]-pal.b[1])*f;lb=pal.b[2]+(pal.c[2]-pal.b[2])*f;}
+                for(let gl=p.glowLayers;gl>=0;gl--){
+                    sk.stroke(lr,lg,lb,gl===0?220:Math.max(30-gl*10,8));
+                    sk.strokeWeight(gl===0?lineWeight:lineWeight+gl*2.5);
+                    sk.noFill();
+                    for(let y=0;y<H-gridStep;y+=gridStep){
+                        for(let x=0;x<W-gridStep;x+=gridStep){
+                            const v00=interferenceVal(x,         y,         tScaled,activeSources,W,H,rotation,freqMult,ampMult);
+                            const v10=interferenceVal(x+gridStep,y,         tScaled,activeSources,W,H,rotation,freqMult,ampMult);
+                            const v01=interferenceVal(x,         y+gridStep,tScaled,activeSources,W,H,rotation,freqMult,ampMult);
+                            const v11=interferenceVal(x+gridStep,y+gridStep,tScaled,activeSources,W,H,rotation,freqMult,ampMult);
+                            const c00=v00>threshold?1:0,c10=v10>threshold?1:0,c01=v01>threshold?1:0,c11=v11>threshold?1:0;
+                            const caseIdx=c00|(c10<<1)|(c01<<2)|(c11<<3);
+                            if(caseIdx===0||caseIdx===15) continue;
+                            function lerp1D(a,b,thr){return Math.abs(b-a)<0.0001?0.5:(thr-a)/(b-a);}
+                            const tTop=lerp1D(v00,v10,threshold),tBottom=lerp1D(v01,v11,threshold);
+                            const tLeft=lerp1D(v00,v01,threshold),tRight=lerp1D(v10,v11,threshold);
+                            const top={x:x+tTop*gridStep,y:y},bottom={x:x+tBottom*gridStep,y:y+gridStep};
+                            const left={x:x,y:y+tLeft*gridStep},right={x:x+gridStep,y:y+tRight*gridStep};
+                            sk.beginShape(sk.LINES);
+                            switch(caseIdx){
+                                case 1:case 14:sk.vertex(top.x,top.y);sk.vertex(left.x,left.y);break;
+                                case 2:case 13:sk.vertex(top.x,top.y);sk.vertex(right.x,right.y);break;
+                                case 3:case 12:sk.vertex(left.x,left.y);sk.vertex(right.x,right.y);break;
+                                case 4:case 11:sk.vertex(bottom.x,bottom.y);sk.vertex(left.x,left.y);break;
+                                case 5:case 10:sk.vertex(top.x,top.y);sk.vertex(bottom.x,bottom.y);break;
+                                case 6:case 9:sk.vertex(top.x,top.y);sk.vertex(left.x,left.y);sk.vertex(bottom.x,bottom.y);sk.vertex(right.x,right.y);break;
+                                case 7:case 8:sk.vertex(bottom.x,bottom.y);sk.vertex(right.x,right.y);break;
+                            }
+                            sk.endShape();
+                        }
+                    }
+                }
+            }
+        }
+
+        document.getElementById('hud-x').innerHTML = `X <span class="val">${smx.toFixed(2)}</span> → ${p.xRole.label}`;
+        document.getElementById('hud-y').innerHTML = `Y <span class="val">${smy.toFixed(2)}</span> → ${p.yRole.label}`;
+    };
+});
+</script>
+<a href="../index.html" id="logo">
+    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                 height="40" viewBox="0 0 784.62 783.07" style="enable-background:new 0 0 784.62 783.07;" xml:space="preserve">
+                <style type="text/css">
+                  .st0{fill:#FFFFFF;}
+                </style>
+                <g>
+                  <g>
+                    <path class="st0" d="M752.94,238.41C651.49-14.37,303.61-82.6,114.57,113.82C-131.44,357.51,45.44,784.66,391.77,783
+                      C666.64,788.25,864.48,489.45,752.94,238.41z M391.76,725c-438.95-7.87-438.88-660.19,0.01-668
+                      C830.71,64.87,830.64,717.19,391.76,725z"/>
+                    <path class="st0" d="M116.05,378.14c-0.93,13.94-1,27.95-0.29,41.86C115.83,410.58,115.55,387.66,116.05,378.14z M161.82,238.15
+                      c-11.7,17.1-20.98,35.49-28.09,54.68c6.09-15.98,13.67-31.4,22.63-45.98c0.14-0.23,0.28-0.46,0.42-0.69
+                      c2.61-4.24,5.34-8.4,8.18-12.49C163.89,235.15,162.85,236.64,161.82,238.15z M190.96,476.76c0.09,0.24,0.19,0.49,0.28,0.73
+                      c0.07,0.17,0.14,0.35,0.22,0.52C191.29,477.6,191.12,477.18,190.96,476.76z M202.3,500.15c-0.49-0.84-0.96-1.68-1.43-2.52
+                      c-0.47-0.84-0.94-1.7-1.39-2.55c-0.46-0.85-0.91-1.71-1.35-2.57c-0.33-0.65-0.66-1.3-0.99-1.95c0.24,0.48,0.48,0.96,0.72,1.44
+                      c2.2,4.34,4.55,8.52,7.05,12.54C204.02,503.09,203.15,501.62,202.3,500.15z M194.08,484.11c0.07,0.17,0.15,0.35,0.23,0.52
+                      c0.23,0.5,0.45,1,0.69,1.5c0.23,0.5,0.46,0.99,0.7,1.49c0.36,0.73,0.71,1.47,1.07,2.2c-0.72-1.47-1.41-2.95-2.11-4.45
+                      C194.47,484.95,194.27,484.53,194.08,484.11z M193.7,483.29c0.12,0.28,0.24,0.55,0.38,0.82c-0.32-0.72-0.65-1.44-0.96-2.16
+                      C193.31,482.4,193.5,482.85,193.7,483.29z M191.65,478.48c0.28,0.71,0.58,1.42,0.88,2.12c0.19,0.45,0.39,0.9,0.59,1.35
+                      c-0.39-0.9-0.77-1.8-1.15-2.71C191.86,478.99,191.75,478.73,191.65,478.48z M209.4,511.49c-0.08-0.11-0.15-0.22-0.23-0.33
+                      c0.17,0.26,0.34,0.51,0.51,0.76C209.58,511.78,209.49,511.64,209.4,511.49z M245.61,228.93c-21.55,19.39-39.12,43.14-51.36,69.41
+                      c0.81-1.72,1.64-3.42,2.49-5.12c0.67-1.32,1.35-2.64,2.04-3.95c0.61-1.14,1.22-2.28,1.85-3.42c1.24-2.27,2.53-4.51,3.87-6.73
+                      v-0.01c1.33-2.22,2.69-4.41,4.11-6.58v-0.01c0.71-1.08,1.42-2.16,2.14-3.24c1.44-2.15,2.92-4.27,4.45-6.36c0-0.01,0-0.01,0-0.01
+                      c3.03-4.19,6.22-8.27,9.55-12.24c0.83-0.99,1.67-1.97,2.52-2.95c1.91-2.2,3.86-4.36,5.86-6.48c0.67-0.71,1.33-1.41,2.01-2.11
+                      c1.02-1.07,2.06-2.13,3.11-3.17c1.34-1.34,2.7-2.66,4.07-3.96c2.07-1.95,4.17-3.86,6.31-5.73
+                      C247.61,227.13,246.61,228.03,245.61,228.93z M270.95,639.04c-13.33-6.84-27.63-15.46-42.16-26.11
+                      c-10.15-7.43-21.33-16.57-32.52-27.47c19.57,19.29,42.07,36.1,66.21,49.24c0.11,0.05,0.22,0.11,0.33,0.18
+                      c4.67,2.53,9.39,4.92,14.17,7.17C274.99,641.09,272.98,640.09,270.95,639.04z M296.59,586.88c-0.79-0.41-1.58-0.82-2.36-1.25
+                      c-0.79-0.41-1.57-0.84-2.36-1.27c-0.78-0.42-1.57-0.86-2.35-1.3c-0.78-0.43-1.56-0.88-2.34-1.33c-0.73-0.41-1.46-0.83-2.19-1.26
+                      c-0.83-0.48-1.65-0.97-2.47-1.47c-0.7-0.41-1.4-0.84-2.1-1.27c-0.97-0.59-1.94-1.19-2.9-1.79c-0.65-0.41-1.29-0.82-1.92-1.23
+                      c-0.36-0.23-0.72-0.46-1.08-0.69c10.27,6.71,20.17,12.18,29.2,16.46C301.33,589.32,298.95,588.12,296.59,586.88z M360.33,116.76
+                      c-0.25,0.02-0.5,0.05-0.74,0.09c1.06-0.12,2.12-0.24,3.18-0.35C361.96,116.58,361.14,116.67,360.33,116.76z M359.28,116.88
+                      c-0.18,0.02-0.36,0.03-0.54,0.06c-0.29,0.03-0.57,0.06-0.85,0.1c-3.33,0.39-6.66,0.85-9.97,1.38c-0.72,0.12-1.45,0.23-2.18,0.36
+                      c-2.89,0.48-5.76,1.01-8.63,1.59c-0.7,0.14-1.39,0.28-2.09,0.43c-2.19,0.46-4.38,0.94-6.55,1.46c-1.03,0.24-2.05,0.49-3.07,0.75
+                      c-1.03,0.25-2.05,0.51-3.07,0.78c-0.97,0.25-1.95,0.51-2.92,0.78c-0.04,0.01-0.08,0.02-0.13,0.04c-1.01,0.28-2.03,0.56-3.04,0.85
+                      c-1.01,0.29-2.02,0.59-3.03,0.89c15.2-4.5,30.51-7.65,46.38-9.5C359.49,116.86,359.38,116.87,359.28,116.88z M573.86,598.39
+                      c10.78-9.71,20.81-20.19,30.01-31.31L573.86,598.39z M609.71,386.52c-0.7-38.22-11.67-76.29-31.62-108.86
+                      c0.21,0.37,0.43,0.74,0.64,1.1c0.48,0.8,0.95,1.6,1.4,2.41c0.09,0.15,0.18,0.31,0.27,0.47c0.46,0.79,0.9,1.57,1.33,2.37
+                      c0.06,0.12,0.13,0.23,0.19,0.35c0.49,0.87,0.97,1.75,1.43,2.63c0.89,1.68,1.77,3.37,2.62,5.07c1.08,2.17,2.13,4.35,3.14,6.55
+                      c0,0.01,0.01,0.01,0.01,0.01c0.3,0.66,0.61,1.33,0.91,2c8.17,18.17,13.87,37.44,16.97,57.1c0.21,1.31,0.4,2.62,0.59,3.94
+                      c0.21,1.45,0.39,2.91,0.57,4.36c0.21,1.71,0.39,3.42,0.56,5.14c0.09,0.95,0.18,1.89,0.26,2.84c0.09,1.05,0.17,2.09,0.24,3.14
+                      c0.08,1.03,0.15,2.07,0.2,3.1v0.06c0.05,0.83,0.09,1.66,0.13,2.49c0.01,0.4,0.03,0.81,0.05,1.22c0.03,0.68,0.05,1.36,0.07,2.05
+                      c0.03,0.91,0.06,1.83,0.07,2.75C609.74,388.06,609.74,387.26,609.71,386.52z M638.45,267.09c-0.9-1.81-1.83-3.6-2.79-5.38
+                      c1.05,2.02,2.1,4.03,3.13,6.07C638.68,267.55,638.57,267.32,638.45,267.09z M639.42,269.04c-0.18-0.36-0.35-0.71-0.53-1.07
+                      c-0.01-0.02-0.02-0.04-0.04-0.06c0.32,0.64,0.64,1.28,0.95,1.93C639.68,269.57,639.55,269.3,639.42,269.04z M666.29,362.13
+                      c0-0.03,0-0.06-0.01-0.09c-0.03-0.31-0.07-0.61-0.1-0.92c-0.32-2.98-0.69-5.96-1.11-8.93c0.38,2.72,0.71,5.45,1.01,8.18
+                      c0.79,7.17,1.3,14.37,1.54,21.58C667.43,375.32,666.98,368.72,666.29,362.13z M667.76,391.1c0,26.98-3.89,54.28-11.52,79.7
+                      C664.13,445.23,668.19,418.43,667.76,391.1z"/>
+                    <path class="st0" d="M638.84,267.87c0,0.01,0.01,0.03,0.01,0.04c0.02,0.02,0.03,0.04,0.04,0.06
+                      C638.87,267.93,638.85,267.9,638.84,267.87z"/>
+                  </g>
+                  <g>
+                    <path class="st0" d="M304.77,302.25V190.97c-20.55,8.69-39.46,20.73-56.14,35.3c-2.14,1.87-4.24,3.78-6.31,5.73
+                      c-1.37,1.3-2.73,2.62-4.07,3.96c-1.05,1.04-2.09,2.1-3.11,3.17c-0.68,0.7-1.34,1.4-2.01,2.11c-2,2.12-3.95,4.28-5.86,6.48
+                      c-0.85,0.98-1.69,1.96-2.52,2.95c-3.32,3.97-6.5,8.05-9.55,12.24c0,0,0,0,0,0.01c-1.52,2.1-3,4.22-4.45,6.36
+                      c-0.72,1.08-1.43,2.16-2.14,3.24v0.01c-1.4,2.17-2.77,4.37-4.11,6.58v0.01c-1.33,2.23-2.62,4.47-3.87,6.73
+                      c-0.63,1.14-1.24,2.28-1.85,3.42c-0.69,1.31-1.37,2.63-2.04,3.95c-0.85,1.7-1.68,3.4-2.49,5.12
+                      c-9.44,20.05-15.84,41.53-18.59,63.66h187.11c0,42.61-0.01,265.15-0.01,302.44c-31.88-2.28-63.02-11.24-91.81-25.4
+                      c-2.73-1.34-5.45-2.73-8.14-4.16c-0.11-0.07-0.22-0.13-0.33-0.18c-50.01-26.79-92.19-69.27-117.72-119.09
+                      c0,0,43.75-45.38,44.01-44.65c0.27,0.78,0.56,1.55,0.85,2.32c0.18,0.47,0.36,0.94,0.54,1.41c0.25,0.66,0.5,1.32,0.76,1.97
+                      c0.01,0.03,0.03,0.07,0.04,0.1c0.09,0.24,0.19,0.49,0.28,0.73c0.07,0.17,0.14,0.35,0.22,0.52c0.06,0.16,0.12,0.31,0.19,0.47
+                      c0.1,0.25,0.21,0.51,0.32,0.76c0.19,0.46,0.37,0.91,0.56,1.36s0.39,0.9,0.59,1.35c0.19,0.45,0.38,0.9,0.58,1.34
+                      c0.42,0.95,0.85,1.9,1.3,2.84c0.23,0.5,0.46,0.99,0.7,1.49c0.36,0.73,0.71,1.47,1.07,2.2c0.02,0.03,0.04,0.06,0.05,0.09
+                      c0.1,0.22,0.21,0.43,0.32,0.65c0.24,0.48,0.48,0.96,0.72,1.44c0.09,0.17,0.18,0.34,0.27,0.51c0.44,0.86,0.89,1.72,1.35,2.57
+                      c0.45,0.85,0.92,1.71,1.39,2.55c0.47,0.84,0.94,1.68,1.43,2.52c0.85,1.47,1.72,2.94,2.61,4.39c0.08,0.12,0.16,0.25,0.24,0.38
+                      c0.43,0.69,0.86,1.39,1.3,2.07c0.49,0.78,0.99,1.55,1.49,2.31c0.24,0.37,0.48,0.74,0.72,1.1c0.17,0.26,0.34,0.51,0.51,0.76
+                      c0.08,0.11,0.15,0.22,0.23,0.33c15.41,22.8,35.67,42.26,58.39,58.01c0.03,0.03,0.06,0.05,0.09,0.07c0.03,0.02,0.06,0.04,0.09,0.06
+                      c0.83,0.58,1.66,1.13,2.49,1.7c0.67,0.46,1.33,0.89,2,1.33c0.68,0.46,1.36,0.9,2.04,1.35c0.01,0,0.01,0,0.02,0.01
+                      c0.36,0.23,0.72,0.46,1.08,0.69c0.63,0.41,1.27,0.82,1.92,1.23c0.96,0.6,1.93,1.2,2.9,1.79c0.7,0.43,1.4,0.86,2.1,1.27
+                      c0.82,0.5,1.64,0.99,2.47,1.47c0.73,0.43,1.46,0.85,2.19,1.26c0.78,0.45,1.56,0.9,2.34,1.33c0.78,0.44,1.57,0.88,2.35,1.3
+                      c0.79,0.43,1.57,0.86,2.36,1.27c0.78,0.43,1.57,0.84,2.36,1.25c2.36,1.24,4.74,2.44,7.13,3.6c0.34,0.16,0.69,0.33,1.04,0.5
+                      c0,0.01,0.01-170.97,0.01-170.98H115.76c-4.18-60.33,9.74-121.8,40.6-173.15c0.14-0.23,0.28-0.46,0.42-0.69
+                      c1.63-2.7,3.31-5.37,5.04-8.01c15.51-23.74,34.81-45.07,57.76-62.79c0.01,0,0.01,0,0.01-0.01c27.73-22.08,59.68-38.86,93.62-49
+                      c1.01-0.3,2.02-0.6,3.03-0.89c1.01-0.29,2.03-0.57,3.04-0.85c0.05-0.02,0.09-0.03,0.13-0.04c0.97-0.27,1.95-0.53,2.92-0.78
+                      c1.02-0.27,2.04-0.53,3.07-0.78c1.02-0.26,2.04-0.51,3.07-0.75c2.17-0.52,4.36-1,6.55-1.46c0.7-0.15,1.39-0.29,2.09-0.43
+                      c2.87-0.58,5.74-1.11,8.63-1.59c0.73-0.13,1.46-0.24,2.18-0.36c3.31-0.53,6.64-0.99,9.97-1.38c0.28-0.04,0.56-0.07,0.85-0.1
+                      c0.18-0.03,0.36-0.04,0.54-0.06c0.1-0.01,0.21-0.02,0.31-0.03c0.24-0.04,0.49-0.07,0.74-0.09c0.81-0.09,1.63-0.18,2.44-0.26
+                      v185.75H304.77z"/>
+                  </g>
+                  <g>
+                    <path class="st0" d="M656.24,470.8c-10.81,35.08-28.84,67.8-52.36,96.27c-0.01,0-0.01,0.01-0.01,0.01
+                      c-9.2,11.12-19.23,21.6-30.01,31.31c-18.73-54.18-77.54-224.19-95.1-274.97V653c-18.53,6.16-37.95,10.4-58,12.49V116.51
+                      c17.69,1.84,34.87,5.36,51.4,10.39c26.07,75.33,97.72,282.57,120.69,348.95c12-27.53,17.43-57.33,16.89-87.04
+                      c-0.01-0.92-0.04-1.84-0.07-2.75c-0.02-0.69-0.04-1.37-0.07-2.05c-0.02-0.41-0.04-0.82-0.05-1.22c-0.04-0.83-0.08-1.66-0.13-2.49
+                      v-0.06c-0.06-1.03-0.13-2.06-0.2-3.1c-0.07-1.05-0.15-2.09-0.24-3.14c-0.08-0.95-0.17-1.89-0.26-2.84
+                      c-0.17-1.72-0.35-3.43-0.56-5.14c-0.18-1.45-0.36-2.91-0.57-4.36c-0.19-1.32-0.38-2.63-0.59-3.94
+                      c-3.14-19.67-8.85-38.94-16.97-57.1c-0.3-0.67-0.61-1.34-0.91-2c0,0-0.01,0-0.01-0.01c-1.01-2.2-2.06-4.38-3.14-6.55
+                      c-0.85-1.7-1.73-3.39-2.62-5.07c-0.47-0.88-0.95-1.76-1.43-2.63c-0.06-0.12-0.13-0.23-0.19-0.35c-0.44-0.79-0.88-1.58-1.33-2.37
+                      c-0.09-0.16-0.18-0.32-0.27-0.47c-0.46-0.81-0.93-1.61-1.4-2.41c-0.43-0.73-0.87-1.46-1.31-2.19c-13.68-22.6-31.48-42.67-53-58.58
+                      l40.97-41.55c56.57,44.76,92.27,112.83,100.69,183.93c0.04,0.25,0.07,0.5,0.1,0.75c0.03,0.31,0.07,0.61,0.1,0.92
+                      c0.01,0.03,0.01,0.06,0.01,0.09C670.37,398.51,667.31,435.64,656.24,470.8z"/>
+                  </g>
+                </g>
+              </svg>
+</a>
+</body>
+</html>
