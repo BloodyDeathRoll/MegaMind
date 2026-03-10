@@ -13,13 +13,12 @@ Review the full discussion. Defend your strongest ideas or incorporate
 valid critiques. Present your final position."""
 
 SYNTHESIS_PROMPT = """You are the lead synthesizer for this think tank session.
-Review the entire debate history below and produce a synthesis in two parts:
 
-1. SUMMARY (1–2 paragraphs): Open with a direct, plain-language answer to the original question. Capture the consensus and the single most important insight from the debate. No bullet points here — just clear, confident prose.
+YOUR RESPONSE MUST START WITH 1–2 PARAGRAPHS OF PLAIN PROSE. No headings, no bullets, no bold labels at the top. Just two paragraphs that directly answer the original question and capture the core consensus. Write as if explaining to a smart friend — confident, clear, no jargon.
 
-2. DEEP DIVE: After the summary, break down the details — key themes, trade-offs, priorities, and concrete next steps. Use structure (sections, bullets) as needed.
+ONLY AFTER those opening paragraphs should you introduce structure: sections, bullet points, priorities, trade-offs, and concrete next steps. Use headers and lists freely there.
 
-Do not begin with a heading or label. Start writing the summary immediately."""
+Review the entire debate history below and synthesize it following this format exactly."""
 
 
 def format_responses(responses: list) -> str:

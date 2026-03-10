@@ -1,3 +1,5 @@
+import ReactMarkdown from 'react-markdown'
+
 const AGENT_ACCENT = {
   claude:  { text: '#E07B39', bg: 'rgba(224,123,57,0.07)' },
   gpt4:    { text: '#10A37F', bg: 'rgba(16,163,127,0.07)' },
@@ -8,6 +10,18 @@ const AGENT_ACCENT = {
 }
 const FALLBACK_ACCENT = { text: '#888', bg: 'rgba(100,100,100,0.07)' }
 const PHASE_LABEL = { brainstorm: 'Brainstorm', critique: 'Critique', rebuttal: 'Rebuttal' }
+
+const mdComponents = {
+  p:      ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+  strong: ({ children }) => <strong className="font-semibold text-white/90">{children}</strong>,
+  em:     ({ children }) => <em className="italic">{children}</em>,
+  ul:     ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
+  ol:     ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
+  li:     ({ children }) => <li>{children}</li>,
+  h1:     ({ children }) => <p className="font-semibold text-white/90 mb-2">{children}</p>,
+  h2:     ({ children }) => <p className="font-semibold text-white/90 mb-2">{children}</p>,
+  h3:     ({ children }) => <p className="font-semibold text-white/85 mb-1">{children}</p>,
+}
 
 function AgentCard({ agent, phases, currentPhase }) {
   const accent = AGENT_ACCENT[agent.id] ?? FALLBACK_ACCENT
@@ -50,13 +64,18 @@ function AgentCard({ agent, phases, currentPhase }) {
           activePhases.map(([phase, texts]) => (
             <div key={phase}>
               {activePhases.length > 1 && (
-                <p className="text-[10px] font-medium uppercase tracking-widest mb-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                <p
+                  className="text-[11px] font-semibold uppercase tracking-widest mb-3"
+                  style={{ color: accent.text, opacity: 0.7 }}
+                >
                   {PHASE_LABEL[phase] ?? phase}
                 </p>
               )}
-              <p className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }}>
-                {texts[agent.id]}
-              </p>
+              <div className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                <ReactMarkdown components={mdComponents}>
+                  {texts[agent.id]}
+                </ReactMarkdown>
+              </div>
             </div>
           ))
         )}
