@@ -54,7 +54,7 @@ function AgentCard({ agent, phases, currentPhase }) {
                   {PHASE_LABEL[phase] ?? phase}
                 </p>
               )}
-              <p className="streaming-text text-[13px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }}>
+              <p className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }}>
                 {texts[agent.id]}
               </p>
             </div>

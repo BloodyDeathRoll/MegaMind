@@ -35,7 +35,7 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
 
       {/* Content */}
       <div className="px-5 py-4">
-        <p className="streaming-text text-[13px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.82)' }}>
+        <p className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.82)' }}>
           {synthesis}
         </p>
       </div>

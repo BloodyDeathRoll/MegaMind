@@ -13,10 +13,13 @@ Review the full discussion. Defend your strongest ideas or incorporate
 valid critiques. Present your final position."""
 
 SYNTHESIS_PROMPT = """You are the lead synthesizer for this think tank session.
-Review the entire debate history below.
-Create a single, coherent, actionable plan that incorporates the strongest
-elements from all participants. Structure it with clear sections,
-priorities, and concrete next steps."""
+Review the entire debate history below and produce a synthesis in two parts:
+
+1. SUMMARY (1–2 paragraphs): Open with a direct, plain-language answer to the original question. Capture the consensus and the single most important insight from the debate. No bullet points here — just clear, confident prose.
+
+2. DEEP DIVE: After the summary, break down the details — key themes, trade-offs, priorities, and concrete next steps. Use structure (sections, bullets) as needed.
+
+Do not begin with a heading or label. Start writing the summary immediately."""
 
 
 def format_responses(responses: list) -> str:
