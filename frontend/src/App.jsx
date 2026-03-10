@@ -550,7 +550,8 @@ export default function App() {
 
   // Fetch agent catalogue on mount
   useEffect(() => {
-    fetch('/api/agents')
+    const apiBase = import.meta.env.VITE_API_URL ?? ''
+    fetch(`${apiBase}/api/agents`)
       .then(r => r.json())
       .then(d => {
         const agents = d.agents ?? STATIC_AGENTS

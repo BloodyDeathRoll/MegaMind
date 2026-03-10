@@ -30,7 +30,8 @@ export function useSSE() {
 
     let response
     try {
-      response = await fetch('/api/debate', {
+      const apiBase = import.meta.env.VITE_API_URL ?? ''
+      response = await fetch(`${apiBase}/api/debate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
