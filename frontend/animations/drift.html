@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drift</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        #hud {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center; gap: 22px;
+            font-family: 'Courier New', monospace; font-size: 11px;
+            color: rgba(255,255,255,0.32);
+            pointer-events: none;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 24px;
+        }
+        .val { color: rgba(255,255,255,0.62); }
+        #grab-btn {
+            pointer-events: all;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.7);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s, color 0.18s;
+        }
+        #grab-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); color: #fff; }
+        #grab-btn.grabbed { background: rgba(80,220,140,0.18); border-color: rgba(80,220,140,0.6); color: rgba(80,220,140,1); }
+    </style>
+</head>
+<body>
+<div id="hud">
+    <span id="hud-x">X: —</span>
+    <span>·</span>
+    <span id="hud-y">Y: —</span>
+    <span>·</span>
+    <span style="opacity:0.35">click to rerandomize</span>
+    <span>·</span>
+    <button id="grab-btn">⬇ Grab Anime</button>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════
+// DRIFT
+// Sparse, slow orbs breathing through a dark field.
+// Mouse proximity gently nudges. Click sends a soft ripple.
+// Inspired by the quiet interactivity of shaharnaor.com
+// ═══════════════════════════════════════════════════════
+
+function mkRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => {
+        s |= 0; s = s + 0x6D2B79F5 | 0;
+        let t = Math.imul(s ^ s >>> 15, 1 | s);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+// Axis roles — what X and Y mouse axes each control
+const AXIS_ROLES = [
+    { id: 'proximity',  label: 'mouse pull'     },
+    { id: 'breathe',    label: 'breathe speed'  },
+    { id: 'wander',     label: 'wander drift'   },
+    { id: 'glow',       label: 'glow radius'    },
+    { id: 'count',      label: 'orb count'      },
+    { id: 'speed',      label: 'drift speed'    },
+    { id: 'colorTemp',  label: 'color warmth'   },
+    { id: 'ripple',     label: 'ripple force'   },
+    { id: 'fade',       label: 'trail fade'     },
+    { id: 'noiseFlow',  label: 'noise flow'     },
+];
+
+// Curated gentle palettes — always dark bg, soft luminous orbs
+const PALETTES = [
+    { bg: [6,6,10],   orbs: [[180,200,255],[220,240,255],[255,255,255],[160,180,240]]  }, // cold silver
+    { bg: [10,6,4],   orbs: [[255,200,140],[255,220,180],[255,240,220],[240,180,120]]  }, // warm amber
+    { bg: [4,8,6],    orbs: [[140,220,180],[180,255,220],[220,255,240],[100,200,160]]  }, // sage mist
+    { bg: [8,4,10],   orbs: [[200,160,255],[220,190,255],[240,220,255],[180,140,240]]  }, // soft violet
+    { bg: [6,8,10],   orbs: [[160,220,240],[180,235,255],[220,245,255],[140,200,220]]  }, // arctic haze
+    { bg: [10,8,4],   orbs: [[255,220,160],[255,235,190],[255,245,220],[240,210,140]]  }, // golden hour
+    { bg: [6,4,8],    orbs: [[200,140,220],[220,170,240],[235,200,250],[180,120,200]]  }, // dusk mauve
+    { bg: [4,6,8],    orbs: [[140,190,220],[170,210,240],[200,230,255],[120,170,200]]  }, // slate dawn
+    { bg: [8,8,6],    orbs: [[220,220,180],[235,235,200],[250,250,220],[200,200,160]]  }, // warm white
+    { bg: [4,4,4],    orbs: [[180,180,200],[210,210,225],[240,240,250],[160,160,180]]  }, // pure monochrome
+];
+
+function randomizeUniverse(seed) {
+    const r = mkRng(seed);
+    const pal = PALETTES[Math.floor(r() * PALETTES.length)];
+
+    // Two distinct axis roles
+    const rolesCopy = [...AXIS_ROLES];
+    const xi = Math.floor(r() * rolesCopy.length);
+    const xRole = rolesCopy.splice(xi, 1)[0];
+    const yRole = rolesCopy[Math.floor(r() * rolesCopy.length)];
+
+    // Sparse: 12–40 orbs
+    const baseCount    = 12 + Math.floor(r() * 28);
+    const baseSpeed    = 0.15 + r() * 0.4;
+    const baseBreathe  = 0.004 + r() * 0.012;
+    const baseWander   = 0.0008 + r() * 0.003;
+    const baseGlow     = 0.3 + r() * 0.5;     // glow radius as fraction of orb size
+    const baseProx     = 0.12 + r() * 0.25;   // mouse proximity influence radius (normalized)
+    const baseRipple   = 1.5 + r() * 3.0;
+    const baseFade     = 12 + Math.floor(r() * 20);
+    const baseNoiseFlow= 0.0005 + r() * 0.002;
+    const baseColorTemp= 0.5;                  // 0=cool, 1=warm (mouse-modulated)
+
+    // Orb size range
+    const minSize = 4 + r() * 8;
+    const maxSize = minSize + 8 + r() * 20;
+
+    // Connection lines between nearby orbs?
+    const drawLines    = r() < 0.55;
+    const lineMaxDist  = 0.12 + r() * 0.18;  // normalized
+
+    return {
+        seed, pal, xRole, yRole,
+        baseCount, baseSpeed, baseBreathe, baseWander,
+        baseGlow, baseProx, baseRipple, baseFade,
+        baseNoiseFlow, baseColorTemp,
+        minSize, maxSize, drawLines, lineMaxDist,
+    };
+}
+
+function resolveAxis(roleId, v) {
+    switch(roleId) {
+        case 'proximity':  return { proxRadius: 0.04 + v * 0.35 };
+        case 'breathe':    return { breatheSpeed: 0.001 + v * 0.025 };
+        case 'wander':     return { wanderAmt: 0.0002 + v * 0.005 };
+        case 'glow':       return { glowMult: 0.1 + v * 1.2 };
+        case 'count':      return { countMult: 0.3 + v * 1.4 };
+        case 'speed':      return { speedMult: 0.1 + v * 2.0 };
+        case 'colorTemp':  return { colorTemp: v };
+        case 'ripple':     return { rippleForce: 0.2 + v * 5.0 };
+        case 'fade':       return { fadeAmt: 4 + Math.round(v * 35) };
+        case 'noiseFlow':  return { noiseFlow: 0.0001 + v * 0.004 };
+        default:           return {};
+    }
+}
+
+// ── Orb class ─────────────────────────────────────────
+class Orb {
+    constructor(r, W, H, p, colArr) {
+        this.x  = r() * W;
+        this.y  = r() * H;
+        this.vx = (r()-0.5) * p.baseSpeed;
+        this.vy = (r()-0.5) * p.baseSpeed;
+        this.baseR = p.minSize + r() * (p.maxSize - p.minSize);
+        this.r  = this.baseR;
+        this.breatheOffset = r() * Math.PI * 2;
+        this.breatheAmt = 0.2 + r() * 0.4;
+        this.noiseOff = r() * 100;
+        this.col = colArr[Math.floor(r() * colArr.length)];
+        this.alpha = 100 + Math.floor(r() * 120);
+    }
+}
+
+// ── Generate grabbed HTML ─────────────────────────────
+function generateGrabHTML(params, orbData) {
+    const p = params;
+    const orbStr = JSON.stringify(orbData);
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drift — grabbed</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"><\/script>
+<style>
+* { margin:0;padding:0;box-sizing:border-box; }
+html,body { width:100%;height:100%;overflow:hidden;background:#000; }
+canvas { display:block; }
+#hud {
+    position:fixed; bottom:0; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    font-family:'Courier New',monospace; font-size:11px;
+    color:rgba(255,255,255,0.32); pointer-events:none; letter-spacing:0.07em;
+    white-space:nowrap; background:rgba(0,0,0,0.5); padding:10px 24px;
+}
+.val { color:rgba(255,255,255,0.62); }
+</style>
+</head>
+<body>
+<div id="hud">
+    <span id="hud-x">X: —</span>
+    <span>·</span>
+    <span id="hud-y">Y: —</span>
+</div>
+<script>
+// Drift — grabbed. seed: ${p.seed}
+// X → ${p.xRole.label}  |  Y → ${p.yRole.label}
+
+const PARAMS = ${JSON.stringify({
+    seed: p.seed, pal: p.pal, xRole: p.xRole, yRole: p.yRole,
+    baseSpeed: p.baseSpeed, baseBreathe: p.baseBreathe, baseWander: p.baseWander,
+    baseGlow: p.baseGlow, baseProx: p.baseProx, baseRipple: p.baseRipple,
+    baseFade: p.baseFade, baseNoiseFlow: p.baseNoiseFlow,
+    minSize: p.minSize, maxSize: p.maxSize,
+    drawLines: p.drawLines, lineMaxDist: p.lineMaxDist,
+})};
+
+function resolveAxis(roleId,v){
+    switch(roleId){
+        case 'proximity':  return {proxRadius:0.04+v*0.35};
+        case 'breathe':    return {breatheSpeed:0.001+v*0.025};
+        case 'wander':     return {wanderAmt:0.0002+v*0.005};
+        case 'glow':       return {glowMult:0.1+v*1.2};
+        case 'count':      return {countMult:0.3+v*1.4};
+        case 'speed':      return {speedMult:0.1+v*2.0};
+        case 'colorTemp':  return {colorTemp:v};
+        case 'ripple':     return {rippleForce:0.2+v*5.0};
+        case 'fade':       return {fadeAmt:4+Math.round(v*35)};
+        case 'noiseFlow':  return {noiseFlow:0.0001+v*0.004};
+        default:           return {};
+    }
+}
+
+let orbData = ${orbStr};
+let ripples = [];
+
+new p5(function(sk){
+    let W,H,pg,t=0;
+    let mx=0.5,my=0.5,smx=0.5,smy=0.5;
+
+    sk.setup=function(){
+        W=sk.windowWidth; H=sk.windowHeight;
+        sk.createCanvas(W,H).parent(document.body);
+        sk.pixelDensity(1); sk.colorMode(sk.RGB,255,255,255,255);
+        sk.noiseSeed(PARAMS.seed);
+        pg=sk.createGraphics(W,H);
+        pg.pixelDensity(1); pg.colorMode(sk.RGB,255,255,255,255);
+        const bg=PARAMS.pal.bg;
+        pg.background(bg[0],bg[1],bg[2]);
+    };
+
+    sk.mouseMoved  =function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    sk.mouseDragged=function(){ mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    // no mousePressed — click disabled
+
+    sk.windowResized=function(){
+        W=sk.windowWidth; H=sk.windowHeight; sk.resizeCanvas(W,H);
+        pg.remove(); pg=sk.createGraphics(W,H); pg.pixelDensity(1); pg.colorMode(sk.RGB,255,255,255,255);
+        pg.background(PARAMS.pal.bg[0],PARAMS.pal.bg[1],PARAMS.pal.bg[2]);
+    };
+
+    sk.draw=function(){
+        t++;
+        smx+=(mx-smx)*0.03; smy+=(my-smy)*0.03;
+        const p=PARAMS, pal=p.pal, bg=pal.bg;
+        const rx=resolveAxis(p.xRole.id,smx), ry=resolveAxis(p.yRole.id,smy);
+        const res=Object.assign({},rx,ry);
+
+        const proxR  =(res.proxRadius  ??p.baseProx)   *Math.min(W,H);
+        const bSpd   = res.breatheSpeed??p.baseBreathe;
+        const wander = res.wanderAmt   ??p.baseWander;
+        const glowM  = res.glowMult    ??p.baseGlow;
+        const spdM   = res.speedMult   ??1.0;
+        const rippleF= res.rippleForce ??p.baseRipple;
+        const fadeAmt= res.fadeAmt     ??p.baseFade;
+        const nFlow  = res.noiseFlow   ??p.baseNoiseFlow;
+        const cTemp  = res.colorTemp   ??0.5;
+
+        pg.noStroke(); pg.fill(bg[0],bg[1],bg[2],fadeAmt); pg.rect(0,0,W,H);
+
+        // Update ripples
+        ripples=ripples.filter(r=>r.alpha>0);
+        for(const rp of ripples){
+            rp.r+=4; rp.alpha-=3;
+            pg.noFill(); pg.stroke(255,255,255,rp.alpha); pg.strokeWeight(0.8);
+            pg.ellipse(rp.x,rp.y,rp.r*2,rp.r*2);
+        }
+
+        const mxPx=smx*W, myPx=smy*H;
+        const n=orbData.length;
+
+        // Draw connection lines
+        if(p.drawLines){
+            const maxD=p.lineMaxDist*Math.min(W,H);
+            for(let i=0;i<n;i++){
+                for(let j=i+1;j<n;j++){
+                    const dx=orbData[i].x-orbData[j].x, dy=orbData[i].y-orbData[j].y;
+                    const d=Math.sqrt(dx*dx+dy*dy);
+                    if(d<maxD){
+                        const a=Math.round((1-d/maxD)*35);
+                        const c=orbData[i].col;
+                        pg.stroke(c[0],c[1],c[2],a); pg.strokeWeight(0.5); pg.noFill();
+                        pg.line(orbData[i].x,orbData[i].y,orbData[j].x,orbData[j].y);
+                    }
+                }
+            }
+        }
+
+        for(let i=0;i<n;i++){
+            const o=orbData[i];
+            // Noise wander
+            const na=sk.noise(o.x*nFlow, o.y*nFlow, t*0.005+o.noiseOff)*Math.PI*4;
+            o.vx+=(Math.cos(na)*wander - o.vx*0.02)*spdM;
+            o.vy+=(Math.sin(na)*wander - o.vy*0.02)*spdM;
+
+            // Mouse proximity nudge
+            const dx=o.x-mxPx, dy=o.y-myPx, d=Math.sqrt(dx*dx+dy*dy);
+            if(d<proxR&&d>1){ const f=(1-d/proxR)*0.5; o.vx+=(dx/d)*f; o.vy+=(dy/d)*f; }
+
+            // Ripple push
+            for(const rp of ripples){
+                const rdx=o.x-rp.x, rdy=o.y-rp.y, rd=Math.sqrt(rdx*rdx+rdy*rdy);
+                const rim=Math.abs(rd-rp.r); if(rim<30&&rd>1){ const f=(1-rim/30)*rippleF*0.04*(rp.alpha/80); o.vx+=(rdx/rd)*f; o.vy+=(rdy/rd)*f; }
+            }
+
+            o.vx*=0.96; o.vy*=0.96;
+            o.x+=o.vx*spdM; o.y+=o.vy*spdM;
+            if(o.x<-50) o.x=W+50; if(o.x>W+50) o.x=-50;
+            if(o.y<-50) o.y=H+50; if(o.y>H+50) o.y=-50;
+
+            // Breathe
+            o.r=o.baseR*(1+Math.sin(t*bSpd+o.breatheOffset)*o.breatheAmt);
+
+            const c=o.col;
+            const alpha=o.alpha;
+            // Glow
+            const gr=o.r*(2+glowM*2);
+            pg.noStroke();
+            pg.fill(c[0],c[1],c[2],Math.round(alpha*0.06*glowM)); pg.ellipse(o.x,o.y,gr*2.5,gr*2.5);
+            pg.fill(c[0],c[1],c[2],Math.round(alpha*0.12*glowM)); pg.ellipse(o.x,o.y,gr*1.5,gr*1.5);
+            pg.fill(c[0],c[1],c[2],Math.round(alpha*0.5));         pg.ellipse(o.x,o.y,o.r*2,o.r*2);
+            pg.fill(255,255,255,Math.round(alpha*0.25));            pg.ellipse(o.x-o.r*0.28,o.y-o.r*0.28,o.r*0.45,o.r*0.45);
+        }
+
+        sk.image(pg,0,0);
+        document.getElementById('hud-x').innerHTML='X <span class="val">'+smx.toFixed(2)+'<\/span> → '+p.xRole.label;
+        document.getElementById('hud-y').innerHTML='Y <span class="val">'+smy.toFixed(2)+'<\/span> → '+p.yRole.label;
+    };
+});
+<\/script>
+</body>
+</html>`;
+}
+
+// ── Main sketch ────────────────────────────────────────
+new p5(function(sk) {
+    let W, H, params, pg, t = 0;
+    let mx = 0.5, my = 0.5, smx = 0.5, smy = 0.5;
+    let orbs = [];
+    let ripples = [];
+
+    function buildOrbs(p) {
+        const r = mkRng(p.seed + 1);
+        orbs = [];
+        for (let i = 0; i < p.baseCount; i++) {
+            orbs.push(new Orb(r, W, H, p, p.pal.orbs));
+        }
+    }
+
+    function init() {
+        sk.noiseSeed(params.seed);
+        buildOrbs(params);
+        ripples = [];
+        if (pg) pg.remove();
+        pg = sk.createGraphics(W, H);
+        pg.pixelDensity(1);
+        pg.colorMode(sk.RGB, 255, 255, 255, 255);
+        const bg = params.pal.bg;
+        pg.background(bg[0], bg[1], bg[2]);
+        t = 0;
+        document.getElementById('grab-btn').classList.remove('grabbed');
+        document.getElementById('grab-btn').textContent = '⬇ Grab Anime';
+    }
+
+    sk.setup = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.createCanvas(W, H).parent(document.body);
+        sk.pixelDensity(1);
+        sk.colorMode(sk.RGB, 255, 255, 255, 255);
+        sk.frameRate(60);
+        params = randomizeUniverse(Math.floor(Math.random() * 999999));
+        init();
+    };
+
+    sk.mouseMoved   = function() { mx = Math.max(0,Math.min(1,sk.mouseX/W)); my = Math.max(0,Math.min(1,sk.mouseY/H)); };
+    sk.mouseDragged = function() { mx = Math.max(0,Math.min(1,sk.mouseX/W)); my = Math.max(0,Math.min(1,sk.mouseY/H)); };
+
+    sk.mousePressed = function() {
+        if (sk.mouseY > H - 50) return; // don't trigger on HUD
+        // Ripple at click point
+        ripples.push({ x: sk.mouseX, y: sk.mouseY, r: 10, alpha: 80 });
+        // Also rerandomize
+        params = randomizeUniverse(Math.floor(Math.random() * 999999));
+        init();
+    };
+
+    sk.windowResized = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.resizeCanvas(W, H); init();
+    };
+
+    // Grab button
+    document.getElementById('grab-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        // Snapshot current orb state
+        const orbSnapshot = orbs.map(o => ({
+            x: o.x, y: o.y, vx: o.vx, vy: o.vy,
+            baseR: o.baseR, r: o.r,
+            breatheOffset: o.breatheOffset, breatheAmt: o.breatheAmt,
+            noiseOff: o.noiseOff, col: o.col, alpha: o.alpha,
+        }));
+        const html = generateGrabHTML(params, orbSnapshot);
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `drift-${params.seed}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const btn = document.getElementById('grab-btn');
+        btn.classList.add('grabbed');
+        btn.textContent = '✓ Grabbed!';
+        setTimeout(() => { btn.textContent = '⬇ Grab Anime'; btn.classList.remove('grabbed'); }, 2000);
+    });
+
+    sk.draw = function() {
+        t++;
+        smx += (mx-smx)*0.03;
+        smy += (my-smy)*0.03;
+
+        const p = params;
+        const pal = p.pal, bg = pal.bg;
+
+        // Resolve mouse axes
+        const rx2 = resolveAxis(p.xRole.id, smx);
+        const ry2 = resolveAxis(p.yRole.id, smy);
+        const res  = Object.assign({}, rx2, ry2);
+
+        const proxR    = (res.proxRadius   ?? p.baseProx)    * Math.min(W, H);
+        const bSpd     = res.breatheSpeed  ?? p.baseBreathe;
+        const wander   = res.wanderAmt     ?? p.baseWander;
+        const glowM    = res.glowMult      ?? p.baseGlow;
+        const spdM     = res.speedMult     ?? 1.0;
+        const rippleF  = res.rippleForce   ?? p.baseRipple;
+        const fadeAmt  = res.fadeAmt       ?? p.baseFade;
+        const nFlow    = res.noiseFlow     ?? p.baseNoiseFlow;
+        const cTemp    = res.colorTemp     ?? 0.5;
+        const countM   = res.countMult     ?? 1.0;
+
+        // Count modulation: smoothly add/remove orbs
+        const targetCount = Math.round(p.baseCount * countM);
+        while (orbs.length < targetCount) {
+            const r = mkRng(p.seed + orbs.length * 97 + t);
+            orbs.push(new Orb(r, W, H, p, pal.orbs));
+        }
+        if (orbs.length > targetCount + 2) orbs.splice(targetCount);
+
+        // Fade background
+        pg.noStroke();
+        pg.fill(bg[0], bg[1], bg[2], fadeAmt);
+        pg.rect(0, 0, W, H);
+
+        // Update & draw ripples
+        ripples = ripples.filter(r => r.alpha > 0);
+        for (const rp of ripples) {
+            rp.r += 4; rp.alpha -= 3;
+            pg.noFill(); pg.stroke(255,255,255,rp.alpha); pg.strokeWeight(0.8);
+            pg.ellipse(rp.x, rp.y, rp.r*2, rp.r*2);
+        }
+
+        const mxPx = smx*W, myPx = smy*H;
+        const n = orbs.length;
+
+        // Connection lines between nearby orbs
+        if (p.drawLines) {
+            const maxD = p.lineMaxDist * Math.min(W, H);
+            for (let i = 0; i < n; i++) {
+                for (let j = i+1; j < n; j++) {
+                    const dx = orbs[i].x - orbs[j].x;
+                    const dy = orbs[i].y - orbs[j].y;
+                    const d  = Math.sqrt(dx*dx + dy*dy);
+                    if (d < maxD) {
+                        const a = Math.round((1 - d/maxD) * 35);
+                        const c = orbs[i].col;
+                        pg.stroke(c[0], c[1], c[2], a);
+                        pg.strokeWeight(0.5); pg.noFill();
+                        pg.line(orbs[i].x, orbs[i].y, orbs[j].x, orbs[j].y);
+                    }
+                }
+            }
+        }
+
+        // Update & draw each orb
+        for (let i = 0; i < n; i++) {
+            const o = orbs[i];
+
+            // Noise-driven wander
+            const na = sk.noise(o.x * nFlow, o.y * nFlow, t*0.005 + o.noiseOff) * Math.PI * 4;
+            o.vx += (Math.cos(na) * wander - o.vx * 0.02) * spdM;
+            o.vy += (Math.sin(na) * wander - o.vy * 0.02) * spdM;
+
+            // Mouse proximity: gentle push away
+            const dx = o.x - mxPx, dy = o.y - myPx;
+            const d  = Math.sqrt(dx*dx + dy*dy);
+            if (d < proxR && d > 1) {
+                const f = (1 - d/proxR) * 0.5;
+                o.vx += (dx/d) * f;
+                o.vy += (dy/d) * f;
+            }
+
+            // Ripple push
+            for (const rp of ripples) {
+                const rdx = o.x - rp.x, rdy = o.y - rp.y;
+                const rd  = Math.sqrt(rdx*rdx + rdy*rdy);
+                const rim = Math.abs(rd - rp.r);
+                if (rim < 30 && rd > 1) {
+                    const f = (1 - rim/30) * rippleF * 0.04 * (rp.alpha / 80);
+                    o.vx += (rdx/rd) * f;
+                    o.vy += (rdy/rd) * f;
+                }
+            }
+
+            o.vx *= 0.96; o.vy *= 0.96;
+            o.x  += o.vx * spdM;
+            o.y  += o.vy * spdM;
+
+            // Wrap at edges
+            if (o.x < -50) o.x = W+50;
+            if (o.x > W+50) o.x = -50;
+            if (o.y < -50) o.y = H+50;
+            if (o.y > H+50) o.y = -50;
+
+            // Breathe size
+            o.r = o.baseR * (1 + Math.sin(t * bSpd + o.breatheOffset) * o.breatheAmt);
+
+            // Color temperature shift
+            const c = [...o.col];
+            if (cTemp !== 0.5) {
+                const warm = (cTemp - 0.5) * 30;
+                c[0] = Math.min(255, Math.max(0, c[0] + warm));
+                c[2] = Math.min(255, Math.max(0, c[2] - warm));
+            }
+
+            const alpha = o.alpha;
+
+            // Layered glow
+            pg.noStroke();
+            pg.fill(c[0], c[1], c[2], Math.round(alpha * 0.06 * glowM));
+            pg.ellipse(o.x, o.y, o.r*2*(2+glowM*2.5), o.r*2*(2+glowM*2.5));
+            pg.fill(c[0], c[1], c[2], Math.round(alpha * 0.12 * glowM));
+            pg.ellipse(o.x, o.y, o.r*2*(1.5+glowM), o.r*2*(1.5+glowM));
+
+            // Core
+            pg.fill(c[0], c[1], c[2], Math.round(alpha * 0.5));
+            pg.ellipse(o.x, o.y, o.r*2, o.r*2);
+
+            // Specular highlight
+            pg.fill(255, 255, 255, Math.round(alpha * 0.25));
+            pg.ellipse(o.x - o.r*0.28, o.y - o.r*0.28, o.r*0.45, o.r*0.45);
+        }
+
+        sk.image(pg, 0, 0);
+
+        // HUD
+        document.getElementById('hud-x').innerHTML =
+            `X <span class="val">${smx.toFixed(2)}</span> → ${p.xRole.label}`;
+        document.getElementById('hud-y').innerHTML =
+            `Y <span class="val">${smy.toFixed(2)}</span> → ${p.yRole.label}`;
+    };
+});
+</script>
+</body>
+</html>

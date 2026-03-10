@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telemetry</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        #hud {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center; gap: 22px;
+            font-family: 'Courier New', monospace; font-size: 11px;
+            color: rgba(255,255,255,0.32);
+            pointer-events: none;
+            letter-spacing: 0.07em;
+            white-space: nowrap;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 24px;
+        }
+        .val { color: rgba(255,255,255,0.62); }
+        #grab-btn {
+            pointer-events: all;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.22);
+            color: rgba(255,255,255,0.7);
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            padding: 5px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background 0.18s, border-color 0.18s, color 0.18s;
+        }
+        #grab-btn:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); color: #fff; }
+        #grab-btn.grabbed { background: rgba(80,220,140,0.18); border-color: rgba(80,220,140,0.6); color: rgba(80,220,140,1); }
+    </style>
+</head>
+<body>
+<div id="hud">
+    <span id="hud-x">X: —</span>
+    <span>·</span>
+    <span id="hud-y">Y: —</span>
+    <span>·</span>
+    <span style="opacity:0.35">click to rerandomize</span>
+    <span>·</span>
+    <button id="grab-btn">⬇ Grab Anime</button>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// TELEMETRY
+// A living signal. Hundreds of micro-particles organized into
+// orbital shells, grid lattices, and pulse-wave formations.
+// Everything breathes on slow sinusoidal cycles — a deep-space
+// instrument panel reading the geometry of the universe.
+//
+// Mouse X/Y each independently modulate a system parameter.
+// Click: new configuration. Grab Anime: export standalone.
+// ═══════════════════════════════════════════════════════════════════
+
+function mkRng(seed) {
+    let s = (seed >>> 0) || 1;
+    return () => {
+        s |= 0; s = s + 0x6D2B79F5 | 0;
+        let t = Math.imul(s ^ s >>> 15, 1 | s);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
+// ── Sci-fi palettes ─────────────────────────────────────────────
+const PALETTES = [
+    { bg:[2,4,8],    fg:[0,180,255],    accent:[0,255,200],  dim:[0,80,120],   name:'deep ocean'   },
+    { bg:[4,8,4],    fg:[0,255,120],    accent:[180,255,80], dim:[0,100,40],   name:'bio scan'     },
+    { bg:[8,4,2],    fg:[255,120,0],    accent:[255,200,60], dim:[120,40,0],   name:'thermal'      },
+    { bg:[6,2,10],   fg:[180,80,255],   accent:[255,80,200], dim:[80,20,120],  name:'void signal'  },
+    { bg:[2,6,8],    fg:[60,200,240],   accent:[200,240,255],dim:[20,80,100],  name:'ice radar'    },
+    { bg:[2,2,2],    fg:[200,210,220],  accent:[255,255,255],dim:[60,70,80],   name:'monochrome'   },
+    { bg:[8,6,2],    fg:[255,210,60],   accent:[255,255,160],dim:[120,90,0],   name:'solar wind'   },
+    { bg:[2,4,6],    fg:[80,180,220],   accent:[160,230,255],dim:[20,60,90],   name:'deep space'   },
+    { bg:[6,2,4],    fg:[255,60,120],   accent:[255,160,180],dim:[120,0,40],   name:'pulsar'       },
+    { bg:[3,5,3],    fg:[100,220,160],  accent:[200,255,220],dim:[30,80,50],   name:'life form'    },
+];
+
+// ── System configurations — what kind of universe gets spawned ───
+const CONFIGS = [
+    'orbital',      // concentric rings of micro-dots rotating at different speeds
+    'lattice',      // grid of nodes connected by faint lines, nodes pulse
+    'constellation',// star-like clusters linked by drawn lines
+    'field',        // flowing noise field of tiny directional dashes
+    'radial',       // radial burst patterns from center nodes
+    'hybrid',       // mix of orbital + field
+];
+
+// ── Axis roles ────────────────────────────────────────────────────
+const AXIS_ROLES = [
+    { id: 'breatheRate',  label: 'breathe rate'    },
+    { id: 'breatheDepth', label: 'breathe depth'   },
+    { id: 'rotSpeed',     label: 'orbit speed'     },
+    { id: 'noiseFlow',    label: 'flow turbulence' },
+    { id: 'linkDist',     label: 'link distance'   },
+    { id: 'glowAmt',      label: 'glow intensity'  },
+    { id: 'pulseSpeed',   label: 'pulse speed'     },
+    { id: 'density',      label: 'particle density'},
+    { id: 'fadeRate',     label: 'trail fade'      },
+    { id: 'mouseField',   label: 'mouse gravity'   },
+];
+
+function resolveAxis(roleId, v) {
+    switch(roleId) {
+        case 'breatheRate':  return { breatheRate:  0.0005 + v * 0.008  };
+        case 'breatheDepth': return { breatheDepth: 0.02   + v * 0.4    };
+        case 'rotSpeed':     return { rotSpeed:     0.0001 + v * 0.003  };
+        case 'noiseFlow':    return { noiseFlow:    0.0002 + v * 0.004  };
+        case 'linkDist':     return { linkDist:     0.04   + v * 0.18   };
+        case 'glowAmt':      return { glowAmt:      0.0    + v * 2.0    };
+        case 'pulseSpeed':   return { pulseSpeed:   0.002  + v * 0.04   };
+        case 'density':      return { density:      0.3    + v * 1.4    };
+        case 'fadeRate':     return { fadeRate:     6      + v * 40     };
+        case 'mouseField':   return { mouseField:   0.0    + v * 1.0    };
+        default:             return {};
+    }
+}
+
+// ── Universe config ────────────────────────────────────────────────
+function randomizeUniverse(seed) {
+    const r = mkRng(seed);
+    const pal    = PALETTES[Math.floor(r() * PALETTES.length)];
+    const config = CONFIGS[Math.floor(r() * CONFIGS.length)];
+
+    const rolesCopy = [...AXIS_ROLES];
+    const xi   = Math.floor(r() * rolesCopy.length);
+    const xRole = rolesCopy.splice(xi, 1)[0];
+    const yRole = rolesCopy[Math.floor(r() * rolesCopy.length)];
+
+    // Base parameters
+    const baseBreathRate  = 0.001 + r() * 0.003;
+    const baseBreathDepth = 0.08  + r() * 0.25;
+    const baseRotSpeed    = 0.0003+ r() * 0.0015;
+    const baseNoiseFlow   = 0.0005+ r() * 0.002;
+    const baseGlow        = 0.3   + r() * 0.8;
+    const basePulseSpeed  = 0.005 + r() * 0.025;
+    const baseLinkDist    = 0.07  + r() * 0.12;
+    const baseFadeRate    = 14    + Math.floor(r() * 22);
+    const baseMouseField  = 0.3   + r() * 0.5;
+
+    // Layout specifics
+    const centerX     = 0.3 + r() * 0.4;
+    const centerY     = 0.3 + r() * 0.4;
+    const ringCount   = 2   + Math.floor(r() * 5);
+    const baseParticleCount = 180 + Math.floor(r() * 320);
+    const gridCols    = 8   + Math.floor(r() * 16);
+    const gridRows    = 6   + Math.floor(r() * 10);
+    const clusterCount= 3   + Math.floor(r() * 6);
+    const particleSize= 1.0 + r() * 1.5;
+    const trailMode   = r() < 0.45; // true = draw trails on persistent layer
+
+    return {
+        seed, pal, config, xRole, yRole,
+        baseBreathRate, baseBreathDepth, baseRotSpeed,
+        baseNoiseFlow, baseGlow, basePulseSpeed,
+        baseLinkDist, baseFadeRate, baseMouseField,
+        centerX, centerY, ringCount,
+        baseParticleCount, gridCols, gridRows,
+        clusterCount, particleSize, trailMode,
+    };
+}
+
+// ── Build particles from config ────────────────────────────────────
+function buildParticles(p, W, H) {
+    const r = mkRng(p.seed + 77);
+    const cx = p.centerX * W, cy = p.centerY * H;
+    const pts = [];
+
+    if (p.config === 'orbital' || p.config === 'hybrid') {
+        for (let ring = 0; ring < p.ringCount; ring++) {
+            const radius   = (0.08 + ring * 0.08 + r() * 0.04) * Math.min(W, H);
+            const count    = 20  + ring * 18 + Math.floor(r() * 20);
+            const rotDir   = r() < 0.5 ? 1 : -1;
+            const tiltFreq = 0.3 + r() * 1.2;
+            const tiltAmp  = 0.05 + r() * 0.2;
+            for (let i = 0; i < count; i++) {
+                const baseAngle = (i / count) * Math.PI * 2;
+                const phaseOff  = r() * Math.PI * 2;
+                pts.push({
+                    type: 'orbital', ring, radius, baseAngle,
+                    angleOff: phaseOff, rotDir, tiltFreq, tiltAmp,
+                    cx, cy,
+                    breathOff: r() * Math.PI * 2,
+                    size: p.particleSize * (0.6 + r() * 0.8),
+                    alpha: 120 + Math.floor(r() * 100),
+                    noiseOff: r() * 100,
+                    col: r() < 0.7 ? 'fg' : 'accent',
+                });
+            }
+        }
+    }
+
+    if (p.config === 'lattice') {
+        const gW = W / (p.gridCols + 1), gH = H / (p.gridRows + 1);
+        for (let col = 1; col <= p.gridCols; col++) {
+            for (let row = 1; row <= p.gridRows; row++) {
+                const jx = (r()-0.5) * gW * 0.3;
+                const jy = (r()-0.5) * gH * 0.3;
+                pts.push({
+                    type: 'lattice',
+                    bx: col * gW + jx, by: row * gH + jy,
+                    x: col * gW + jx,  y: row * gH + jy,
+                    vx: 0, vy: 0,
+                    col: r() < 0.15 ? 'accent' : 'fg',
+                    col2: 'dim',
+                    alpha: 80 + Math.floor(r() * 100),
+                    size: p.particleSize * (0.5 + r() * 0.8),
+                    pulseOff: r() * Math.PI * 2,
+                    noiseOff: r() * 100,
+                    breathOff: r() * Math.PI * 2,
+                    isNode: r() < 0.12,
+                });
+            }
+        }
+    }
+
+    if (p.config === 'constellation') {
+        for (let c = 0; c < p.clusterCount; c++) {
+            const clCx = (0.1 + r() * 0.8) * W;
+            const clCy = (0.1 + r() * 0.8) * H;
+            const clR  = (0.06 + r() * 0.14) * Math.min(W, H);
+            const n    = 6 + Math.floor(r() * 20);
+            for (let i = 0; i < n; i++) {
+                const a = r() * Math.PI * 2;
+                const d = r() * clR;
+                pts.push({
+                    type: 'constellation',
+                    cluster: c,
+                    x: clCx + Math.cos(a)*d, y: clCy + Math.sin(a)*d,
+                    bx: clCx + Math.cos(a)*d, by: clCy + Math.sin(a)*d,
+                    clCx, clCy,
+                    alpha: 100 + Math.floor(r() * 120),
+                    size: p.particleSize * (0.5 + r() * 1.0),
+                    breathOff: r() * Math.PI * 2,
+                    noiseOff: r() * 100,
+                    pulseOff: r() * Math.PI * 2,
+                    col: r() < 0.2 ? 'accent' : 'fg',
+                    isBright: r() < 0.15,
+                });
+            }
+        }
+    }
+
+    if (p.config === 'field' || p.config === 'hybrid') {
+        const count = p.config === 'hybrid' ? Math.floor(p.baseParticleCount * 0.4) : p.baseParticleCount;
+        for (let i = 0; i < count; i++) {
+            pts.push({
+                type: 'field',
+                x: r() * W, y: r() * H,
+                vx: (r()-0.5)*0.3, vy: (r()-0.5)*0.3,
+                alpha: 60 + Math.floor(r() * 100),
+                size: p.particleSize * (0.4 + r() * 0.7),
+                noiseOff: r() * 100,
+                breathOff: r() * Math.PI * 2,
+                age: Math.floor(r() * 200),
+                maxAge: 150 + Math.floor(r() * 250),
+                col: r() < 0.15 ? 'accent' : 'fg',
+            });
+        }
+    }
+
+    if (p.config === 'radial') {
+        const armCount = 3 + Math.floor(r() * 5);
+        const perArm   = 30 + Math.floor(r() * 50);
+        for (let arm = 0; arm < armCount; arm++) {
+            const armAngle = (arm / armCount) * Math.PI * 2 + r() * 0.3;
+            for (let i = 0; i < perArm; i++) {
+                const t   = i / perArm;
+                const d   = t * Math.min(W, H) * (0.25 + r() * 0.2);
+                const spread = (r()-0.5) * 0.15 * Math.PI;
+                pts.push({
+                    type: 'radial',
+                    arm, armAngle, d, spread,
+                    cx, cy,
+                    alpha: 200 - Math.floor(t * 160),
+                    size: p.particleSize * (1.2 - t * 0.7),
+                    breathOff: r() * Math.PI * 2,
+                    noiseOff: r() * 100,
+                    col: t < 0.2 ? 'accent' : 'fg',
+                });
+            }
+        }
+    }
+
+    return pts;
+}
+
+// ─── Draw a single frame ─────────────────────────────────────────
+function drawFrame(sk, pg, pts, params, W, H, t, smx, smy, res) {
+    const p   = params;
+    const pal = p.pal;
+    const bg  = pal.bg;
+
+    const breathRate  = res.breatheRate  ?? p.baseBreathRate;
+    const breathDepth = res.breatheDepth ?? p.baseBreathDepth;
+    const rotSpeed    = res.rotSpeed     ?? p.baseRotSpeed;
+    const noiseFlow   = res.noiseFlow    ?? p.baseNoiseFlow;
+    const glowAmt     = res.glowAmt      ?? p.baseGlow;
+    const pulseSpeed  = res.pulseSpeed   ?? p.basePulseSpeed;
+    const linkDist    = (res.linkDist    ?? p.baseLinkDist) * Math.min(W, H);
+    const fadeRate    = res.fadeRate     ?? p.baseFadeRate;
+    const mouseField  = res.mouseField   ?? p.baseMouseField;
+    const density     = res.density      ?? 1.0;
+
+    const mxPx = smx * W, myPx = smy * H;
+
+    // Fade trail layer
+    if (p.trailMode) {
+        pg.noStroke();
+        pg.fill(bg[0], bg[1], bg[2], fadeRate);
+        pg.rect(0, 0, W, H);
+    } else {
+        pg.background(bg[0], bg[1], bg[2]);
+    }
+
+    const getCol = (key) => {
+        if (key === 'fg')     return pal.fg;
+        if (key === 'accent') return pal.accent;
+        if (key === 'dim')    return pal.dim;
+        return pal.fg;
+    };
+
+    // ── Global slow breathing pulse ─────────────────────────────
+    const globalBreath = Math.sin(t * breathRate) * breathDepth;
+    const globalPulse  = (Math.sin(t * pulseSpeed) + 1) * 0.5;
+
+    // ── Draw connection lines for lattice / constellation ────────
+    const linkTypes = new Set(['lattice', 'constellation']);
+    const linkPts   = pts.filter(pt => linkTypes.has(pt.type));
+    if (linkPts.length > 0) {
+        for (let i = 0; i < linkPts.length; i++) {
+            for (let j = i+1; j < linkPts.length; j++) {
+                const a = linkPts[i], b = linkPts[j];
+                if (a.cluster !== undefined && a.cluster !== b.cluster) continue;
+                const dx = a.x - b.x, dy = a.y - b.y;
+                const d  = Math.sqrt(dx*dx + dy*dy);
+                if (d < linkDist) {
+                    const t2 = 1 - d/linkDist;
+                    const c  = getCol(a.col2 ?? 'dim');
+                    const alpha = Math.round(t2 * 28 * (1 + globalBreath));
+                    pg.stroke(c[0], c[1], c[2], alpha);
+                    pg.strokeWeight(0.4);
+                    pg.noFill();
+                    pg.line(a.x, a.y, b.x, b.y);
+                }
+            }
+        }
+    }
+
+    // ── Update & draw each particle ─────────────────────────────
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+        const pt = pts[i];
+        const breathPhase = Math.sin(t * breathRate + pt.breathOff) * breathDepth;
+
+        if (pt.type === 'orbital') {
+            // Rotate
+            pt.angleOff += rotSpeed * pt.rotDir;
+            const ang = pt.baseAngle + pt.angleOff;
+            // Tilt breathing
+            const tilt = Math.sin(t * breathRate * pt.tiltFreq + pt.breathOff) * pt.tiltAmp;
+            const r2   = pt.radius * (1 + breathPhase * 0.3);
+            pt.x = pt.cx + Math.cos(ang) * r2;
+            pt.y = pt.cy + Math.sin(ang) * r2 * (0.4 + 0.6 * (1 - Math.abs(tilt)));
+
+            // Mouse gravity pull toward cursor
+            const mdx = mxPx - pt.x, mdy = myPx - pt.y;
+            const md  = Math.sqrt(mdx*mdx + mdy*mdy);
+            if (md < 120 && md > 1) {
+                const f = (1 - md/120) * mouseField * 0.6;
+                pt.x += mdx/md * f;
+                pt.y += mdy/md * f;
+            }
+        }
+
+        if (pt.type === 'lattice') {
+            // Gentle float on noise
+            const na = sk.noise(pt.bx * noiseFlow, pt.by * noiseFlow, t*0.003) * Math.PI * 4;
+            pt.vx += Math.cos(na) * 0.03;
+            pt.vy += Math.sin(na) * 0.03;
+            pt.vx *= 0.92; pt.vy *= 0.92;
+            // Return to home
+            pt.vx += (pt.bx - pt.x) * 0.008;
+            pt.vy += (pt.by - pt.y) * 0.008;
+            pt.x  += pt.vx; pt.y += pt.vy;
+            // Mouse push
+            const mdx = pt.x - mxPx, mdy = pt.y - myPx;
+            const md  = Math.sqrt(mdx*mdx + mdy*mdy);
+            if (md < 80 && md > 1) { const f=(1-md/80)*mouseField*0.4; pt.x+=mdx/md*f; pt.y+=mdy/md*f; }
+        }
+
+        if (pt.type === 'constellation') {
+            // Slow drift + return
+            const na = sk.noise(pt.bx * noiseFlow, pt.by * noiseFlow, t*0.002) * Math.PI * 2;
+            pt.x += Math.cos(na) * 0.08;
+            pt.y += Math.sin(na) * 0.08;
+            pt.x += (pt.bx - pt.x) * 0.003;
+            pt.y += (pt.by - pt.y) * 0.003;
+        }
+
+        if (pt.type === 'field') {
+            const na = sk.noise(pt.x * noiseFlow, pt.y * noiseFlow, t*0.003 + pt.noiseOff) * Math.PI * 4;
+            pt.vx += Math.cos(na) * 0.06;
+            pt.vy += Math.sin(na) * 0.06;
+            pt.vx *= 0.94; pt.vy *= 0.94;
+            pt.x  += pt.vx; pt.y += pt.vy;
+            pt.age++;
+            if (pt.x < 0||pt.x > W||pt.y < 0||pt.y > H||pt.age > pt.maxAge) {
+                const r2 = mkRng(p.seed + i + t);
+                pt.x = r2() * W; pt.y = r2() * H;
+                pt.vx = 0; pt.vy = 0; pt.age = 0;
+            }
+        }
+
+        if (pt.type === 'radial') {
+            const a = pt.armAngle + pt.spread + t * rotSpeed * pt.arm * 0.3;
+            pt.x = pt.cx + Math.cos(a) * pt.d * (1 + breathPhase * 0.15);
+            pt.y = pt.cy + Math.sin(a) * pt.d * (1 + breathPhase * 0.15);
+        }
+
+        // ── Draw ─────────────────────────────────────────────────
+        const c     = getCol(pt.col);
+        const alpha = Math.round(pt.alpha * (1 + breathPhase * 0.4) * Math.min(density, 1.4));
+        const sz    = (pt.size ?? 1) * (1 + breathPhase * 0.2);
+
+        pg.noStroke();
+
+        if (glowAmt > 0.05) {
+            // Outer glow
+            pg.fill(c[0], c[1], c[2], Math.round(alpha * 0.05 * glowAmt));
+            pg.ellipse(pt.x, pt.y, sz*10*glowAmt, sz*10*glowAmt);
+            pg.fill(c[0], c[1], c[2], Math.round(alpha * 0.12 * glowAmt));
+            pg.ellipse(pt.x, pt.y, sz*5*glowAmt,  sz*5*glowAmt);
+        }
+
+        // Core dot
+        pg.fill(c[0], c[1], c[2], alpha);
+        pg.ellipse(pt.x, pt.y, sz*2, sz*2);
+
+        // Bright core for highlighted nodes
+        if (pt.isNode || pt.isBright) {
+            pg.fill(pal.accent[0], pal.accent[1], pal.accent[2], Math.round(alpha * 0.9));
+            pg.ellipse(pt.x, pt.y, sz*2.5, sz*2.5);
+            // Crosshair tick marks for lattice nodes
+            if (pt.isNode) {
+                const tickLen = sz * 3;
+                pg.stroke(pal.accent[0], pal.accent[1], pal.accent[2], Math.round(alpha * 0.4));
+                pg.strokeWeight(0.5); pg.noFill();
+                pg.line(pt.x - tickLen, pt.y, pt.x + tickLen, pt.y);
+                pg.line(pt.x, pt.y - tickLen, pt.x, pt.y + tickLen);
+            }
+        }
+
+        // Field particles: draw tiny directional dash
+        if (pt.type === 'field') {
+            const spd = Math.sqrt(pt.vx*pt.vx + pt.vy*pt.vy);
+            if (spd > 0.05) {
+                const dashLen = Math.min(spd * 4, 6);
+                pg.stroke(c[0], c[1], c[2], Math.round(alpha * 0.5));
+                pg.strokeWeight(sz * 0.7);
+                pg.noFill();
+                pg.line(pt.x, pt.y, pt.x - pt.vx/spd*dashLen, pt.y - pt.vy/spd*dashLen);
+            }
+        }
+    }
+
+    // ── Scanning line (slow, subtle) ─────────────────────────────
+    {
+        const scanY = ((t * 0.003) % 1.0) * H;
+        pg.noFill();
+        pg.stroke(pal.fg[0], pal.fg[1], pal.fg[2], 12);
+        pg.strokeWeight(1);
+        pg.line(0, scanY, W, scanY);
+        pg.stroke(pal.fg[0], pal.fg[1], pal.fg[2], 5);
+        pg.strokeWeight(3);
+        pg.line(0, scanY, W, scanY);
+    }
+}
+
+// ── Generate grabbed HTML ─────────────────────────────────────────
+function generateGrabHTML(params) {
+    const p = params;
+    const resolveAxisStr = resolveAxis.toString();
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telemetry — grabbed</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+canvas{display:block;}
+#hud{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:22px;font-family:'Courier New',monospace;font-size:11px;color:rgba(255,255,255,0.32);pointer-events:none;letter-spacing:0.07em;white-space:nowrap;background:rgba(0,0,0,0.5);padding:10px 24px;}
+.val{color:rgba(255,255,255,0.62);}
+</style>
+</head>
+<body>
+<div id="hud"><span id="hud-x">X: —</span><span>·</span><span id="hud-y">Y: —</span></div>
+<script>
+// Telemetry — grabbed. seed: ${p.seed}  config: ${p.config}
+// X → ${p.xRole.label}  |  Y → ${p.yRole.label}
+
+function mkRng(seed){let s=(seed>>>0)||1;return()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+const PARAMS = ${JSON.stringify(p)};
+
+${resolveAxisStr}
+
+function buildParticles(p,W,H){
+${buildParticles.toString().split('\n').slice(1,-1).join('\n')}
+}
+
+new p5(function(sk){
+    let W,H,pts,pg,t=0,mx=0.5,my=0.5,smx=0.5,smy=0.5;
+    sk.setup=function(){
+        W=sk.windowWidth;H=sk.windowHeight;
+        sk.createCanvas(W,H).parent(document.body);
+        sk.pixelDensity(1);sk.colorMode(sk.RGB,255,255,255,255);sk.frameRate(60);
+        sk.noiseSeed(PARAMS.seed);
+        pts=buildParticles(PARAMS,W,H);
+        pg=sk.createGraphics(W,H);
+        pg.pixelDensity(1);pg.colorMode(sk.RGB,255,255,255,255);
+        const bg=PARAMS.pal.bg;pg.background(bg[0],bg[1],bg[2]);
+    };
+    sk.mouseMoved  =function(){mx=Math.max(0,Math.min(1,sk.mouseX/W));my=Math.max(0,Math.min(1,sk.mouseY/H));};
+    sk.mouseDragged=function(){mx=Math.max(0,Math.min(1,sk.mouseX/W));my=Math.max(0,Math.min(1,sk.mouseY/H));};
+    sk.windowResized=function(){W=sk.windowWidth;H=sk.windowHeight;sk.resizeCanvas(W,H);pts=buildParticles(PARAMS,W,H);pg.remove();pg=sk.createGraphics(W,H);pg.pixelDensity(1);pg.colorMode(sk.RGB,255,255,255,255);pg.background(PARAMS.pal.bg[0],PARAMS.pal.bg[1],PARAMS.pal.bg[2]);};
+    sk.draw=function(){
+        t++;smx+=(mx-smx)*0.03;smy+=(my-smy)*0.03;
+        const rx=resolveAxis(PARAMS.xRole.id,smx),ry=resolveAxis(PARAMS.yRole.id,smy);
+        const res=Object.assign({},rx,ry);
+        const getCol=k=>k==='fg'?PARAMS.pal.fg:k==='accent'?PARAMS.pal.accent:PARAMS.pal.dim;
+        const bg=PARAMS.pal.bg,pal=PARAMS.pal;
+        const breathRate=res.breatheRate??PARAMS.baseBreathRate;
+        const breathDepth=res.breatheDepth??PARAMS.baseBreathDepth;
+        const rotSpeed=res.rotSpeed??PARAMS.baseRotSpeed;
+        const noiseFlow=res.noiseFlow??PARAMS.baseNoiseFlow;
+        const glowAmt=res.glowAmt??PARAMS.baseGlow;
+        const pulseSpeed=res.pulseSpeed??PARAMS.basePulseSpeed;
+        const linkDist=(res.linkDist??PARAMS.baseLinkDist)*Math.min(W,H);
+        const fadeRate=res.fadeRate??PARAMS.baseFadeRate;
+        const mouseField=res.mouseField??PARAMS.baseMouseField;
+        const density=res.density??1.0;
+        const mxPx=smx*W,myPx=smy*H;
+        const globalBreath=Math.sin(t*breathRate)*breathDepth;
+        if(PARAMS.trailMode){pg.noStroke();pg.fill(bg[0],bg[1],bg[2],fadeRate);pg.rect(0,0,W,H);}else{pg.background(bg[0],bg[1],bg[2]);}
+        const linkTypes=new Set(['lattice','constellation']);
+        const linkPts=pts.filter(pt=>linkTypes.has(pt.type));
+        for(let i=0;i<linkPts.length;i++){for(let j=i+1;j<linkPts.length;j++){const a=linkPts[i],b=linkPts[j];if(a.cluster!==undefined&&a.cluster!==b.cluster)continue;const dx=a.x-b.x,dy=a.y-b.y,d=Math.sqrt(dx*dx+dy*dy);if(d<linkDist){const t2=1-d/linkDist;const c=getCol(a.col2??'dim');const alpha=Math.round(t2*28*(1+globalBreath));pg.stroke(c[0],c[1],c[2],alpha);pg.strokeWeight(0.4);pg.noFill();pg.line(a.x,a.y,b.x,b.y);}}}
+        for(let i=0;i<pts.length;i++){
+            const pt=pts[i];const breathPhase=Math.sin(t*breathRate+pt.breathOff)*breathDepth;
+            if(pt.type==='orbital'){pt.angleOff+=rotSpeed*pt.rotDir;const ang=pt.baseAngle+pt.angleOff;const tilt=Math.sin(t*breathRate*pt.tiltFreq+pt.breathOff)*pt.tiltAmp;const r2=pt.radius*(1+breathPhase*0.3);pt.x=pt.cx+Math.cos(ang)*r2;pt.y=pt.cy+Math.sin(ang)*r2*(0.4+0.6*(1-Math.abs(tilt)));const mdx=mxPx-pt.x,mdy=myPx-pt.y,md=Math.sqrt(mdx*mdx+mdy*mdy);if(md<120&&md>1){const f=(1-md/120)*mouseField*0.6;pt.x+=mdx/md*f;pt.y+=mdy/md*f;}}
+            if(pt.type==='lattice'){const na=sk.noise(pt.bx*noiseFlow,pt.by*noiseFlow,t*0.003)*Math.PI*4;pt.vx+=Math.cos(na)*0.03;pt.vy+=Math.sin(na)*0.03;pt.vx*=0.92;pt.vy*=0.92;pt.vx+=(pt.bx-pt.x)*0.008;pt.vy+=(pt.by-pt.y)*0.008;pt.x+=pt.vx;pt.y+=pt.vy;const mdx=pt.x-mxPx,mdy=pt.y-myPx,md=Math.sqrt(mdx*mdx+mdy*mdy);if(md<80&&md>1){const f=(1-md/80)*mouseField*0.4;pt.x+=mdx/md*f;pt.y+=mdy/md*f;}}
+            if(pt.type==='constellation'){const na=sk.noise(pt.bx*noiseFlow,pt.by*noiseFlow,t*0.002)*Math.PI*2;pt.x+=Math.cos(na)*0.08;pt.y+=Math.sin(na)*0.08;pt.x+=(pt.bx-pt.x)*0.003;pt.y+=(pt.by-pt.y)*0.003;}
+            if(pt.type==='field'){const na=sk.noise(pt.x*noiseFlow,pt.y*noiseFlow,t*0.003+pt.noiseOff)*Math.PI*4;pt.vx+=Math.cos(na)*0.06;pt.vy+=Math.sin(na)*0.06;pt.vx*=0.94;pt.vy*=0.94;pt.x+=pt.vx;pt.y+=pt.vy;pt.age++;if(pt.x<0||pt.x>W||pt.y<0||pt.y>H||pt.age>pt.maxAge){const r2=mkRng(PARAMS.seed+i+t);pt.x=r2()*W;pt.y=r2()*H;pt.vx=0;pt.vy=0;pt.age=0;}}
+            if(pt.type==='radial'){const a=pt.armAngle+pt.spread+t*rotSpeed*pt.arm*0.3;pt.x=pt.cx+Math.cos(a)*pt.d*(1+breathPhase*0.15);pt.y=pt.cy+Math.sin(a)*pt.d*(1+breathPhase*0.15);}
+            const c=getCol(pt.col);const alpha=Math.round(pt.alpha*(1+breathPhase*0.4)*Math.min(density,1.4));const sz=(pt.size??1)*(1+breathPhase*0.2);
+            pg.noStroke();
+            if(glowAmt>0.05){pg.fill(c[0],c[1],c[2],Math.round(alpha*0.05*glowAmt));pg.ellipse(pt.x,pt.y,sz*10*glowAmt,sz*10*glowAmt);pg.fill(c[0],c[1],c[2],Math.round(alpha*0.12*glowAmt));pg.ellipse(pt.x,pt.y,sz*5*glowAmt,sz*5*glowAmt);}
+            pg.fill(c[0],c[1],c[2],alpha);pg.ellipse(pt.x,pt.y,sz*2,sz*2);
+            if(pt.isNode||pt.isBright){pg.fill(pal.accent[0],pal.accent[1],pal.accent[2],Math.round(alpha*0.9));pg.ellipse(pt.x,pt.y,sz*2.5,sz*2.5);if(pt.isNode){const tl=sz*3;pg.stroke(pal.accent[0],pal.accent[1],pal.accent[2],Math.round(alpha*0.4));pg.strokeWeight(0.5);pg.noFill();pg.line(pt.x-tl,pt.y,pt.x+tl,pt.y);pg.line(pt.x,pt.y-tl,pt.x,pt.y+tl);}}
+            if(pt.type==='field'){const spd=Math.sqrt(pt.vx*pt.vx+pt.vy*pt.vy);if(spd>0.05){const dl=Math.min(spd*4,6);pg.stroke(c[0],c[1],c[2],Math.round(alpha*0.5));pg.strokeWeight(sz*0.7);pg.noFill();pg.line(pt.x,pt.y,pt.x-pt.vx/spd*dl,pt.y-pt.vy/spd*dl);}}
+        }
+        {const scanY=((t*0.003)%1.0)*H;pg.noFill();pg.stroke(pal.fg[0],pal.fg[1],pal.fg[2],12);pg.strokeWeight(1);pg.line(0,scanY,W,scanY);pg.stroke(pal.fg[0],pal.fg[1],pal.fg[2],5);pg.strokeWeight(3);pg.line(0,scanY,W,scanY);}
+        sk.image(pg,0,0);
+        document.getElementById('hud-x').innerHTML='X <span class="val">'+smx.toFixed(2)+'<\/span> → '+PARAMS.xRole.label;
+        document.getElementById('hud-y').innerHTML='Y <span class="val">'+smy.toFixed(2)+'<\/span> → '+PARAMS.yRole.label;
+    };
+});
+<\/script>
+</body>
+</html>`;
+}
+
+// ── Main p5 sketch ────────────────────────────────────────────────
+new p5(function(sk) {
+    let W, H, params, pts, pg, t = 0;
+    let mx = 0.5, my = 0.5, smx = 0.5, smy = 0.5;
+
+    function init() {
+        sk.noiseSeed(params.seed);
+        pts = buildParticles(params, W, H);
+        if (pg) pg.remove();
+        pg = sk.createGraphics(W, H);
+        pg.pixelDensity(1);
+        pg.colorMode(sk.RGB, 255, 255, 255, 255);
+        const bg = params.pal.bg;
+        pg.background(bg[0], bg[1], bg[2]);
+        t = 0;
+        document.getElementById('grab-btn').classList.remove('grabbed');
+        document.getElementById('grab-btn').textContent = '⬇ Grab Anime';
+    }
+
+    sk.setup = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.createCanvas(W, H).parent(document.body);
+        sk.pixelDensity(1);
+        sk.colorMode(sk.RGB, 255, 255, 255, 255);
+        sk.frameRate(60);
+        params = randomizeUniverse(Math.floor(Math.random() * 999999));
+        init();
+    };
+
+    sk.mouseMoved   = function() { mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+    sk.mouseDragged = function() { mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)); };
+
+    sk.mousePressed = function() {
+        if (sk.mouseY > H - 50) return;
+        params = randomizeUniverse(Math.floor(Math.random() * 999999));
+        init();
+    };
+
+    sk.windowResized = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.resizeCanvas(W, H); init();
+    };
+
+    document.getElementById('grab-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        const html = generateGrabHTML(params);
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `telemetry-${params.seed}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const btn = document.getElementById('grab-btn');
+        btn.classList.add('grabbed'); btn.textContent = '✓ Grabbed!';
+        setTimeout(() => { btn.textContent = '⬇ Grab Anime'; btn.classList.remove('grabbed'); }, 2000);
+    });
+
+    sk.draw = function() {
+        t++;
+        smx += (mx-smx)*0.03;
+        smy += (my-smy)*0.03;
+
+        const rx2 = resolveAxis(params.xRole.id, smx);
+        const ry2 = resolveAxis(params.yRole.id, smy);
+        const res  = Object.assign({}, rx2, ry2);
+
+        drawFrame(sk, pg, pts, params, W, H, t, smx, smy, res);
+        sk.image(pg, 0, 0);
+
+        document.getElementById('hud-x').innerHTML =
+            `X <span class="val">${smx.toFixed(2)}</span> → ${params.xRole.label}`;
+        document.getElementById('hud-y').innerHTML =
+            `Y <span class="val">${smy.toFixed(2)}</span> → ${params.yRole.label}`;
+    };
+});
+</script>
+</body>
+</html>

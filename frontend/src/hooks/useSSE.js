@@ -19,7 +19,7 @@ export function useSSE() {
   const [state, setState] = useState(initialState)
   const abortRef = useRef(null)
 
-  const startDebate = useCallback(async (prompt, agentIds, rounds, synthesisAgentId) => {
+  const startDebate = useCallback(async (prompt, agentIds, rounds, synthesisAgentId, apiKeys = {}) => {
     // Cancel any in-flight request
     if (abortRef.current) abortRef.current.abort()
     const controller = new AbortController()
@@ -38,6 +38,7 @@ export function useSSE() {
           agent_ids: agentIds,
           rounds,
           synthesis_agent_id: synthesisAgentId,
+          api_keys: apiKeys,
         }),
         signal: controller.signal,
       })

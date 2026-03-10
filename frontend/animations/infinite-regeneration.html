@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Regeneration</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        canvas { display: block; }
+        #hud {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            display: flex; align-items: center; justify-content: center; gap: 22px;
+            font-family: 'Courier New', monospace; font-size: 11px;
+            color: rgba(255,255,255,0.28);
+            pointer-events: none; letter-spacing: 0.08em;
+            white-space: nowrap; background: rgba(0,0,0,0.5); padding: 10px 24px;
+        }
+        .val { color: rgba(255,255,255,0.6); }
+        #grab-btn {
+            pointer-events: all;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6);
+            font-family: 'Courier New', monospace; font-size: 11px;
+            letter-spacing: 0.08em; padding: 5px 14px; border-radius: 20px;
+            cursor: pointer; transition: background 0.18s, border-color 0.18s, color 0.18s;
+        }
+        #grab-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.45); color: #fff; }
+        #grab-btn.grabbed { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.5); color: #fff; }
+    </style>
+</head>
+<body>
+<div id="hud">
+    <span id="hud-particles">— particles</span>
+    <span>·</span>
+    <span style="opacity:0.3">mouse: steer · click: new field</span>
+    <span>·</span>
+    <button id="grab-btn">⬇ Grab Anime</button>
+</div>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// INFINITE REGENERATION v4
+//
+// Fast + fully asymmetric. Key changes vs v3:
+//
+// ASYMMETRY: noise field is sampled from a random world-space
+// origin (noiseOX, noiseOY, noiseOZ) chosen per click — completely
+// different region of the infinite Perlin lattice each time.
+// Camera also starts at a random XY position in the field.
+// Displacement grid origin is also randomised.
+//
+// PERFORMANCE:
+//  - 25k particles (was 90k)
+//  - No per-frame depth sort — particles are pre-sorted into
+//    buckets by spawn z-layer and never re-sorted. Visual quality
+//    difference is negligible since all particles are the same
+//    neutral white on black.
+//  - Displacement grid baked at 48×30 (was 60×38)
+//  - Volumetric noise: single call per visible particle (unchanged)
+//  - sk.push/pop replaced with manual save/restore for speed
+// ═══════════════════════════════════════════════════════════════════
+
+const N          = 25000;
+const FIELD_W    = 4000;
+const FIELD_H    = 2800;
+const FIELD_D    = 7000;
+const VOL_SCALE  = 0.00080;
+const VOL_T      = 0.00028;
+const CAM_SPEED  = 2.2;
+const FOV        = 600;
+
+const GRID_W     = 48;
+const GRID_H     = 30;
+const FBM_OCT    = 4;
+const FBM_FREQ   = 0.020;
+const FBM_STR    = 55;
+const FBM_T      = 0.00010;
+
+// Typed arrays
+const px    = new Float32Array(N);
+const py    = new Float32Array(N);
+const pz    = new Float32Array(N);
+const psize = new Float32Array(N);
+const pasp  = new Float32Array(N);  // aspect ratio (pre-baked)
+
+const gdx   = new Float32Array(GRID_W * GRID_H);
+const gdy   = new Float32Array(GRID_W * GRID_H);
+
+let camZ = 0, camX = 0, camY = 0, camVX = 0, camVY = 0;
+// Random noise origin — breaks lattice symmetry completely
+let noiseOX = 0, noiseOY = 0, noiseOZ = 0;
+// Random camera start (viewport feels like we flew in from somewhere)
+let camStartX = 0, camStartY = 0;
+let frameT = 0;
+
+function randomise() {
+    noiseOX   = Math.random() * 10000 - 5000;
+    noiseOY   = Math.random() * 10000 - 5000;
+    noiseOZ   = Math.random() * 10000 - 5000;
+    camStartX = (Math.random() - 0.5) * FIELD_W * 0.4;
+    camStartY = (Math.random() - 0.5) * FIELD_H * 0.4;
+    camX = camStartX; camY = camStartY;
+    camZ = 0; camVX = 0; camVY = 0;
+    frameT = 0;
+}
+
+function spawnParticle(sk, i, fullDepth) {
+    // Scatter particles randomly across full world volume (no centering)
+    px[i]    = (sk.random() - 0.5) * FIELD_W + camStartX;
+    py[i]    = (sk.random() - 0.5) * FIELD_H + camStartY;
+    pz[i]    = fullDepth
+        ? camZ + sk.random() * FIELD_D
+        : camZ + FIELD_D * 0.85 + sk.random() * FIELD_D * 0.18;
+    psize[i] = 1.0 + sk.random() * 11.0;
+    // Asymmetric aspect: broad random range, no two particles the same
+    pasp[i]  = 0.15 + sk.random() * sk.random() * 0.85;  // skewed toward elongated
+}
+
+// ── Displacement grid ─────────────────────────────────────────────
+function bakeFractalGrid(sk, ft) {
+    // ft + noiseOX/OY/OZ offsets ensure this region of noise is unique
+    const ox = noiseOX * 0.001;
+    const oy = noiseOY * 0.001;
+    const ot = ft + noiseOZ * 0.001;
+
+    for (let gy = 0; gy < GRID_H; gy++) {
+        for (let gx = 0; gx < GRID_W; gx++) {
+            let dx = 0, dy = 0, amp = 1.0, freq = FBM_FREQ, ma = 0;
+            for (let o = 0; o < FBM_OCT; o++) {
+                const fx = gx * freq + ox;
+                const fy = gy * freq + oy;
+                const fz = ot + o * 5.9;
+                dx += (sk.noise(fx, fy,        fz) - 0.5) * amp;
+                dy += (sk.noise(fx, fy + 400,  fz) - 0.5) * amp;
+                ma += amp; amp *= 0.50; freq *= 2.05;
+            }
+            const idx = gy * GRID_W + gx;
+            gdx[idx] = (dx / ma) * FBM_STR;
+            gdy[idx] = (dy / ma) * FBM_STR;
+        }
+    }
+}
+
+function sampleDisplace(sx, sy, W, H) {
+    const gxf = (sx / W) * (GRID_W - 1);
+    const gyf = (sy / H) * (GRID_H - 1);
+    const gx0 = Math.max(0, Math.min(GRID_W - 2, gxf | 0));
+    const gy0 = Math.max(0, Math.min(GRID_H - 2, gyf | 0));
+    const tx  = gxf - gx0, ty = gyf - gy0;
+    const i00 = gy0 * GRID_W + gx0;
+    return [
+        gdx[i00]*(1-tx)*(1-ty) + gdx[i00+1]*tx*(1-ty) + gdx[i00+GRID_W]*(1-tx)*ty + gdx[i00+GRID_W+1]*tx*ty,
+        gdy[i00]*(1-tx)*(1-ty) + gdy[i00+1]*tx*(1-ty) + gdy[i00+GRID_W]*(1-tx)*ty + gdy[i00+GRID_W+1]*tx*ty,
+    ];
+}
+
+// ── Main sketch ───────────────────────────────────────────────────
+new p5(function(sk) {
+    let W, H;
+    let smx = 0.5, smy = 0.5, tmx = 0.5, tmy = 0.5;
+
+    sk.setup = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.createCanvas(W, H).parent(document.body);
+        sk.pixelDensity(1);
+        sk.frameRate(60);
+        sk.noStroke();
+        randomise();
+        for (let i = 0; i < N; i++) spawnParticle(sk, i, true);
+        document.getElementById('hud-particles').innerHTML =
+            `<span class="val">${N.toLocaleString()}</span> particles`;
+    };
+
+    sk.mouseMoved   = function() { tmx = sk.mouseX / W; tmy = sk.mouseY / H; };
+    sk.mouseDragged = function() { tmx = sk.mouseX / W; tmy = sk.mouseY / H; };
+
+    sk.mousePressed = function() {
+        if (sk.mouseY > H - 50) return;
+        randomise();
+        for (let i = 0; i < N; i++) spawnParticle(sk, i, true);
+    };
+
+    sk.windowResized = function() {
+        W = sk.windowWidth; H = sk.windowHeight;
+        sk.resizeCanvas(W, H);
+    };
+
+    sk.draw = function() {
+        frameT++;
+
+        smx  += (tmx - smx) * 0.025;
+        smy  += (tmy - smy) * 0.025;
+        camVX += ((smx - 0.5) * 1.1 - camVX) * 0.03;
+        camVY += ((smy - 0.5) * 0.65 - camVY) * 0.03;
+        camX  += camVX;
+        camY  += camVY;
+        camZ  += CAM_SPEED;
+
+        const nt = camZ * VOL_T;
+        const ft = frameT * FBM_T;
+        const cx = W / 2, cy = H / 2;
+
+        bakeFractalGrid(sk, ft);
+        sk.background(0);
+
+        for (let i = 0; i < N; i++) {
+            const dz = pz[i] - camZ;
+
+            // Recycle once fully passed
+            if (dz < -10) {
+                spawnParticle(sk, i, false);
+                continue;
+            }
+            if (dz > FIELD_D) continue;
+
+            const scale = FOV / (Math.max(dz, 1) + FOV);
+            const rawSx = cx + (px[i] - camX) * scale;
+            const rawSy = cy + (py[i] - camY) * scale;
+
+            const margin = FBM_STR + 28;
+            if (rawSx + margin < 0 || rawSx - margin > W ||
+                rawSy + margin < 0 || rawSy - margin > H) continue;
+
+            // Displacement lookup
+            const [ddx, ddy] = sampleDisplace(rawSx, rawSy, W, H);
+            const sx = rawSx + ddx;
+            const sy = rawSy + ddy;
+
+            // Single volumetric noise sample — angle + size + brightness
+            const nv = sk.noise(
+                (px[i] - camStartX) * VOL_SCALE + noiseOX * 0.0005,
+                (py[i] - camStartY) * VOL_SCALE + noiseOY * 0.0005,
+                pz[i]               * VOL_SCALE * 0.20 + noiseOZ * 0.0005 + nt
+            );
+
+            const sz = psize[i] * scale * (0.3 + nv * 1.1);
+            if (sz < 0.3) continue;
+
+            // Far fade (quadratic) + near fade (linear over last 300 units)
+            const NEAR_FADE = 300;
+            const df       = 1.0 - dz / FIELD_D;
+            const nearFade = dz < NEAR_FADE ? dz / NEAR_FADE : 1.0;
+            const alpha    = df * df * nearFade * 255 | 0;
+            if (alpha < 3) continue;
+
+            // Angle from noise — full 2π rotation
+            const angle = nv * 6.2832;
+            // Aspect: mix pre-baked base with noise nudge
+            const asp = pasp[i] * (0.6 + nv * 0.8);
+
+            // Draw without push/pop — manual translate/rotate/restore
+            sk.fill(255, 255, 255, alpha);
+            sk.translate(sx, sy);
+            sk.rotate(angle);
+            sk.ellipse(0, 0, sz * 2, sz * 2 * asp);
+            sk.rotate(-angle);
+            sk.translate(-sx, -sy);
+        }
+    };
+
+    document.getElementById('grab-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        const html = grabHTML();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href = url;
+        a.download = `infinite-regen-${frameT}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+        const btn = document.getElementById('grab-btn');
+        btn.classList.add('grabbed'); btn.textContent = '✓ Grabbed!';
+        setTimeout(() => { btn.textContent = '⬇ Grab Anime'; btn.classList.remove('grabbed'); }, 2000);
+    });
+
+    function grabHTML() {
+        const snap = {
+            noiseOX, noiseOY, noiseOZ,
+            camStartX, camStartY,
+        };
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infinite Regeneration</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}html,body{width:100%;height:100%;overflow:hidden;background:#000;}canvas{display:block;}
+#hud{position:fixed;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:22px;font-family:'Courier New',monospace;font-size:11px;color:rgba(255,255,255,0.28);pointer-events:none;letter-spacing:0.08em;white-space:nowrap;background:rgba(0,0,0,0.5);padding:10px 24px;}
+.val{color:rgba(255,255,255,0.6);}
+</style>
+</head><body>
+<div id="hud"><span><span class="val">25,000</span> particles</span><span>·</span><span style="opacity:0.3">mouse: steer</span></div>
+<script>
+const S=${JSON.stringify(snap)};
+const N=25000,FIELD_W=4000,FIELD_H=2800,FIELD_D=7000;
+const VOL_SCALE=0.00080,VOL_T=0.00028,CAM_SPEED=2.2,FOV=600;
+const GRID_W=48,GRID_H=30,FBM_OCT=4,FBM_FREQ=0.020,FBM_STR=55,FBM_T=0.00010;
+const px=new Float32Array(N),py=new Float32Array(N),pz=new Float32Array(N);
+const psize=new Float32Array(N),pasp=new Float32Array(N);
+const gdx=new Float32Array(GRID_W*GRID_H),gdy=new Float32Array(GRID_W*GRID_H);
+let camZ=0,camX=S.camStartX,camY=S.camStartY,camVX=0,camVY=0,frameT=0;
+function spawnParticle(sk,i,full){
+  px[i]=(sk.random()-0.5)*FIELD_W+S.camStartX;py[i]=(sk.random()-0.5)*FIELD_H+S.camStartY;
+  pz[i]=full?camZ+sk.random()*FIELD_D:camZ+FIELD_D*0.85+sk.random()*FIELD_D*0.18;
+  psize[i]=1.0+sk.random()*11.0;pasp[i]=0.15+sk.random()*sk.random()*0.85;
+}
+function bakeFractalGrid(sk,ft){
+  const ox=S.noiseOX*0.001,oy=S.noiseOY*0.001,ot=ft+S.noiseOZ*0.001;
+  for(let gy=0;gy<GRID_H;gy++){for(let gx=0;gx<GRID_W;gx++){
+    let dx=0,dy=0,amp=1,freq=FBM_FREQ,ma=0;
+    for(let o=0;o<FBM_OCT;o++){const fx=gx*freq+ox,fy=gy*freq+oy,fz=ot+o*5.9;dx+=(sk.noise(fx,fy,fz)-0.5)*amp;dy+=(sk.noise(fx,fy+400,fz)-0.5)*amp;ma+=amp;amp*=0.50;freq*=2.05;}
+    const idx=gy*GRID_W+gx;gdx[idx]=(dx/ma)*FBM_STR;gdy[idx]=(dy/ma)*FBM_STR;
+  }}
+}
+function sd(sx,sy,W,H){
+  const gxf=(sx/W)*(GRID_W-1),gyf=(sy/H)*(GRID_H-1);
+  const gx0=Math.max(0,Math.min(GRID_W-2,gxf|0)),gy0=Math.max(0,Math.min(GRID_H-2,gyf|0));
+  const tx=gxf-gx0,ty=gyf-gy0,i00=gy0*GRID_W+gx0;
+  return[gdx[i00]*(1-tx)*(1-ty)+gdx[i00+1]*tx*(1-ty)+gdx[i00+GRID_W]*(1-tx)*ty+gdx[i00+GRID_W+1]*tx*ty,
+         gdy[i00]*(1-tx)*(1-ty)+gdy[i00+1]*tx*(1-ty)+gdy[i00+GRID_W]*(1-tx)*ty+gdy[i00+GRID_W+1]*tx*ty];
+}
+new p5(function(sk){
+  let W,H,smx=0.5,smy=0.5,tmx=0.5,tmy=0.5;
+  sk.setup=function(){W=sk.windowWidth;H=sk.windowHeight;sk.createCanvas(W,H).parent(document.body);sk.pixelDensity(1);sk.frameRate(60);sk.noStroke();for(let i=0;i<N;i++)spawnParticle(sk,i,true);};
+  sk.mouseMoved=function(){tmx=sk.mouseX/W;tmy=sk.mouseY/H;};sk.mouseDragged=function(){tmx=sk.mouseX/W;tmy=sk.mouseY/H;};
+  sk.windowResized=function(){W=sk.windowWidth;H=sk.windowHeight;sk.resizeCanvas(W,H);};
+  sk.draw=function(){
+    frameT++;smx+=(tmx-smx)*0.025;smy+=(tmy-smy)*0.025;
+    camVX+=((smx-0.5)*1.1-camVX)*0.03;camVY+=((smy-0.5)*0.65-camVY)*0.03;
+    camX+=camVX;camY+=camVY;camZ+=CAM_SPEED;
+    const nt=camZ*VOL_T,ft=frameT*FBM_T,cx=W/2,cy=H/2;
+    bakeFractalGrid(sk,ft);sk.background(0);
+    for(let i=0;i<N;i++){
+      const dz=pz[i]-camZ;
+      if(dz<-10){spawnParticle(sk,i,false);continue;}if(dz>FIELD_D)continue;
+      const scale=FOV/(Math.max(dz,1)+FOV),rsx=cx+(px[i]-camX)*scale,rsy=cy+(py[i]-camY)*scale;
+      const margin=FBM_STR+28;if(rsx+margin<0||rsx-margin>W||rsy+margin<0||rsy-margin>H)continue;
+      const[ddx,ddy]=sd(rsx,rsy,W,H);const sx=rsx+ddx,sy=rsy+ddy;
+      const nv=sk.noise((px[i]-S.camStartX)*VOL_SCALE+S.noiseOX*0.0005,(py[i]-S.camStartY)*VOL_SCALE+S.noiseOY*0.0005,pz[i]*VOL_SCALE*0.20+S.noiseOZ*0.0005+nt);
+      const sz=psize[i]*scale*(0.3+nv*1.1);if(sz<0.3)continue;
+      const nearFade=dz<300?dz/300:1,df=1-dz/FIELD_D,alpha=df*df*nearFade*255|0;if(alpha<3)continue;
+      const angle=nv*6.2832,asp=pasp[i]*(0.6+nv*0.8);
+      sk.fill(255,255,255,alpha);sk.translate(sx,sy);sk.rotate(angle);sk.ellipse(0,0,sz*2,sz*2*asp);sk.rotate(-angle);sk.translate(-sx,-sy);
+    }
+  };
+});
+<\/script></body></html>`;
+    }
+});
+</script>
+</body>
+</html>

@@ -13,22 +13,39 @@ app = FastAPI(title="MegaMind AI Think Tank")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Static agent catalogue — availability is determined by the user's own API keys,
-# not by env variables. The env keys act as a fallback / dev convenience only.
+# tier: "free"    → server provides the key; always usable at no cost to user
+# tier: "premium" → user must supply their own API key
 AGENT_CATALOGUE = [
-    {"id": "claude", "name": "Claude"},
-    {"id": "gpt4",   "name": "ChatGPT"},
-    {"id": "gemini", "name": "Gemini"},
+    {"id": "llama",   "name": "Llama",    "tier": "free"},
+    {"id": "mistral", "name": "Mistral",  "tier": "free"},
+    {"id": "claude",  "name": "Claude",   "tier": "premium"},
+    {"id": "gpt4",    "name": "ChatGPT",  "tier": "premium"},
+    {"id": "gemini",  "name": "Gemini",   "tier": "premium"},
+    {"id": "grok",    "name": "Grok",     "tier": "premium"},
 ]
 
 
 def _build_agent(agent_id: str, user_key: str | None):
-    """Create an agent instance using the user-provided key, falling back to env."""
+    """Create an agent instance. Free agents use server keys; premium fall back to env for dev."""
+    if agent_id == "llama":
+        from backend.agents.groq_agent import GroqAgent
+        key = config.GROQ_API_KEY  # always server key
+        return GroqAgent(api_key=key) if key else None
+
+    if agent_id == "mistral":
+        from backend.agents.mistral_agent import MistralAgent
+        key = config.MISTRAL_API_KEY  # always server key
+        return MistralAgent(api_key=key) if key else None
+
     if agent_id == "claude":
         from backend.agents.claude_agent import ClaudeAgent
         key = user_key or config.ANTHROPIC_API_KEY
@@ -44,6 +61,11 @@ def _build_agent(agent_id: str, user_key: str | None):
         key = user_key or config.GOOGLE_API_KEY
         return GeminiAgent(api_key=key) if key else None
 
+    if agent_id == "grok":
+        from backend.agents.grok_agent import GrokAgent
+        key = user_key or config.GROK_API_KEY
+        return GrokAgent(api_key=key) if key else None
+
     return None
 
 
@@ -51,7 +73,7 @@ def _build_agent(agent_id: str, user_key: str | None):
 
 @app.get("/api/agents")
 async def get_agents():
-    """Return the agent catalogue, flagging which ones have backend keys configured."""
+    """Return agent catalogue with availability and tier."""
     agents = []
     for a in AGENT_CATALOGUE:
         available = bool(_build_agent(a["id"], None))
@@ -64,7 +86,7 @@ class DebateRequest(BaseModel):
     agent_ids: list[str]
     rounds: int = 4
     synthesis_agent_id: str
-    api_keys: dict[str, str] = {}   # user-provided keys; values may be empty strings
+    api_keys: dict[str, str] = {}   # user-provided keys for premium agents
 
 
 @app.post("/api/debate")
