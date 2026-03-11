@@ -544,7 +544,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
 
       {/* Single scrollable content area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3 max-w-[720px] mx-auto">
           {activeAgents.length > 0 && (
             <DebateView
               agents={activeAgents}
