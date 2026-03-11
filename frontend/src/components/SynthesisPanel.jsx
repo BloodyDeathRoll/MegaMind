@@ -24,7 +24,7 @@ function splitSynthesis(text) {
   return { preview, rest }
 }
 
-export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, status, currentPhase }) {
+export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, status, currentPhase, rtl = false }) {
   const [expanded, setExpanded] = useState(false)
   const isSynthesizing = currentPhase === 'synthesis'
   if (!synthesis && !isSynthesizing) return null
@@ -64,7 +64,7 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
       </div>
 
       {/* Content */}
-      <div className="streaming-text px-5 py-5 text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.82)' }}>
+      <div className="streaming-text px-5 py-5 text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.82)' }} dir={rtl ? 'rtl' : 'ltr'}>
         <ReactMarkdown components={mdComponents}>
           {preview}
         </ReactMarkdown>

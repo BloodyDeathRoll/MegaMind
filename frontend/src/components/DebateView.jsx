@@ -23,7 +23,7 @@ const mdComponents = {
   h3:     ({ children }) => <p className="font-semibold text-white/85 mb-1">{children}</p>,
 }
 
-function AgentCard({ agent, phases, currentPhase }) {
+function AgentCard({ agent, phases, currentPhase, rtl }) {
   const accent = AGENT_ACCENT[agent.id] ?? FALLBACK_ACCENT
 
   const activePhases = Object.entries(phases)
@@ -71,7 +71,7 @@ function AgentCard({ agent, phases, currentPhase }) {
                   {PHASE_LABEL[phase] ?? phase}
                 </p>
               )}
-              <div className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }}>
+              <div className="streaming-text text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.72)' }} dir={rtl ? 'rtl' : 'ltr'}>
                 <ReactMarkdown components={mdComponents}>
                   {texts[agent.id]}
                 </ReactMarkdown>
@@ -84,7 +84,7 @@ function AgentCard({ agent, phases, currentPhase }) {
   )
 }
 
-export default function DebateView({ agents, phases, currentPhase }) {
+export default function DebateView({ agents, phases, currentPhase, rtl = false }) {
   return (
     <div className="space-y-3">
       {agents.map(agent => (
@@ -93,6 +93,7 @@ export default function DebateView({ agents, phases, currentPhase }) {
           agent={agent}
           phases={phases}
           currentPhase={currentPhase}
+          rtl={rtl}
         />
       ))}
     </div>

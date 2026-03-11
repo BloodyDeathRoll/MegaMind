@@ -10,6 +10,15 @@ import APIsScreen from './screens/APIsScreen'
 
 const PHASE_ORDER = ['brainstorm', 'critique', 'rebuttal', 'synthesis']
 
+const RTL_RE = /[\u0590-\u05FF\u0600-\u06FF\u0700-\u074F\u0750-\u077F\u07C0-\u07FF]/
+function isRTL(text) {
+  if (!text) return false
+  const letters = text.match(/\p{L}/gu) || []
+  if (letters.length === 0) return false
+  const rtlCount = letters.filter(c => RTL_RE.test(c)).length
+  return rtlCount / letters.length > 0.3
+}
+
 const SUGGESTIONS = [
   'Will AI accelerate geopolitical fragmentation?',
   'Post-AGI economic models',
@@ -395,7 +404,7 @@ function MainInputArea({
 }
 
 // Active debate right panel
-function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinue }) {
+function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinue, rtl = false }) {
   const [followUp, setFollowUp] = useState('')
   const followUpRef = useRef(null)
   const activeAgents = agents.filter(a => activeIds.includes(a.id))
@@ -456,6 +465,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
               agents={activeAgents}
               phases={state.phases}
               currentPhase={state.currentPhase}
+              rtl={rtl}
             />
           )}
 
@@ -465,6 +475,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
             totalCostUSD={state.totalCostUSD}
             status={state.status}
             currentPhase={state.currentPhase}
+            rtl={rtl}
           />
 
           {/* Error banner */}
@@ -548,6 +559,7 @@ export default function App() {
 
   // Debate settings
   const [rounds, setRounds] = useState(2)
+  const [debatePrompt, setDebatePrompt] = useState('')
   const [prompt, setPrompt] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [apisReturnScreen, setApisReturnScreen] = useState('intro')
@@ -602,6 +614,7 @@ export default function App() {
   function handleStart(p, selectedRounds, synthesisAgentId) {
     setRounds(selectedRounds)
     setShowSettings(false)
+    setDebatePrompt(p)
     startDebate(p, activeIds, selectedRounds, synthesisAgentId, apiKeys)
   }
 
@@ -616,6 +629,7 @@ export default function App() {
       ? `[Previous synthesis: ${synthesis}]\n\nFollow-up: ${followUpText}`
       : followUpText
     const synthesisAgentId = activeIds[0] ?? ''
+    setDebatePrompt(followUpText)
     startDebate(contextualPrompt, activeIds, rounds, synthesisAgentId, apiKeys)
   }
 
@@ -677,6 +691,7 @@ export default function App() {
             rounds={rounds}
             onReset={handleReset}
             onContinue={handleContinue}
+            rtl={isRTL(debatePrompt)}
           />
         )}
       </div>
