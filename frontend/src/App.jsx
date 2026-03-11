@@ -69,7 +69,7 @@ function PhaseBar({ currentPhase, rounds }) {
 }
 
 // Shared left panel: animation + branding
-function LeftPanel({ collapsed = false }) {
+function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
   return (
     <div className="shrink-0 overflow-hidden w-full md:w-1/2 relative flex flex-col md:block">
       {/* Animation — mobile: transitions height; desktop: fills panel via absolute inset */}
@@ -80,8 +80,9 @@ function LeftPanel({ collapsed = false }) {
         <ResonantLogo className="absolute inset-0 w-full h-full" />
       </div>
 
-      {/* Title — mobile: sits below animation (or tiny bar when collapsed); desktop: overlaid */}
-      <div className="relative flex flex-col justify-center pointer-events-none animate-fadein
+      {/* Title — mobile: slim header bar when collapsed; desktop: overlaid on animation */}
+      <div className="relative flex flex-row items-center justify-between pointer-events-none animate-fadein
+                      md:flex-col md:items-start md:justify-center
                       md:absolute md:inset-0 md:px-12 px-6 py-3 md:py-0">
         <h1
           className="font-bold text-white tracking-tight"
@@ -89,6 +90,20 @@ function LeftPanel({ collapsed = false }) {
         >
           MegaMind
         </h1>
+
+        {/* New debate — mobile only, next to title when in debate */}
+        {collapsed && hasDebate && (
+          <button
+            onClick={onReset}
+            className="md:hidden pointer-events-auto px-5 py-2 rounded-full text-[13px] text-white transition-all"
+            style={{ background: '#B873AE', transitionDuration: '500ms' }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+          >
+            New debate
+          </button>
+        )}
+
         <p className={`mt-1 text-white font-medium ${collapsed ? 'hidden md:block' : ''}`}
            style={{ fontSize: 'clamp(13px, 2.2vw, 40px)', opacity: 0.9 }}>
           AI think tank
@@ -455,7 +470,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         </div>
         <button
           onClick={onReset}
-          className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
+          className="hidden md:block px-5 py-2 rounded-full text-[13px] text-white transition-all"
           style={{ background: '#B873AE', transitionDuration: '500ms' }}
           onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
@@ -652,7 +667,7 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col md:flex-row bg-ink overflow-hidden">
-      <LeftPanel collapsed={animationCollapsed} />
+      <LeftPanel collapsed={animationCollapsed} hasDebate={hasDebate} onReset={handleReset} />
 
       {/* Right panel — switches between screens */}
       <div className="flex-1 flex flex-col min-h-0 bg-ink overflow-hidden">
