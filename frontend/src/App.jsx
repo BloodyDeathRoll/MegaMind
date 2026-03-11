@@ -193,7 +193,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything..."
-              style={{ caretColor: '#B873AE' }}
+              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}

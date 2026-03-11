@@ -1,9 +1,6 @@
 import { useEffect, useRef } from 'react'
 import p5 from 'p5'
 
-// ── Ported from animations/infinite-regeneration.html ────────────
-
-// ── React component ──────────────────────────────────────────────
 export default function ResonantLogo({ className = '' }) {
   const containerRef = useRef(null)
 
@@ -12,129 +9,335 @@ export default function ResonantLogo({ className = '' }) {
     if (!container) return
 
     const sketch = (sk) => {
-      // Constants
-      const N         = 20000
-      const FIELD_W   = 4000
-      const FIELD_H   = 2800
-      const FIELD_D   = 7000
-      const VOL_SCALE = 0.00080
-      const VOL_T     = 0.00028
-      const CAM_SPEED = 2.2
-      const FOV       = 600
-      const GRID_W    = 48
-      const GRID_H    = 30
-      const FBM_OCT   = 4
-      const FBM_FREQ  = 0.020
-      const FBM_STR   = 55
-      const FBM_T     = 0.00010
-
-      // Typed arrays — allocated once
-      const px    = new Float32Array(N)
-      const py    = new Float32Array(N)
-      const pz    = new Float32Array(N)
-      const psize = new Float32Array(N)
-      const pasp  = new Float32Array(N)
-      const gdx   = new Float32Array(GRID_W * GRID_H)
-      const gdy   = new Float32Array(GRID_W * GRID_H)
-
-      let W, H
-      let camZ = 0, camX = 0, camY = 0, camVX = 0, camVY = 0
-      let noiseOX = 0, noiseOY = 0, noiseOZ = 0
-      let camStartX = 0, camStartY = 0
-      let frameT = 0
-      let smx = 0.5, smy = 0.5, tmx = 0.5, tmy = 0.5
-
-      function getSize() {
-        return { w: container.clientWidth || 2, h: container.clientHeight || 2 }
-      }
-
-      function randomise() {
-        noiseOX   = Math.random() * 10000 - 5000
-        noiseOY   = Math.random() * 10000 - 5000
-        noiseOZ   = Math.random() * 10000 - 5000
-        camStartX = (Math.random() - 0.5) * FIELD_W * 0.4
-        camStartY = (Math.random() - 0.5) * FIELD_H * 0.4
-        camX = camStartX; camY = camStartY
-        camZ = 0; camVX = 0; camVY = 0
-        frameT = 0
-      }
-
-      function spawnParticle(i, fullDepth) {
-        px[i]    = (sk.random() - 0.5) * FIELD_W + camStartX
-        py[i]    = (sk.random() - 0.5) * FIELD_H + camStartY
-        pz[i]    = fullDepth
-          ? camZ + sk.random() * FIELD_D
-          : camZ + FIELD_D * 0.85 + sk.random() * FIELD_D * 0.18
-        psize[i] = 1.0 + sk.random() * 11.0
-        pasp[i]  = 0.15 + sk.random() * sk.random() * 0.85
-      }
-
-      function bakeFractalGrid(ft) {
-        const ox = noiseOX * 0.001
-        const oy = noiseOY * 0.001
-        const ot = ft + noiseOZ * 0.001
-        for (let gy = 0; gy < GRID_H; gy++) {
-          for (let gx = 0; gx < GRID_W; gx++) {
-            let dx = 0, dy = 0, amp = 1.0, freq = FBM_FREQ, ma = 0
-            for (let o = 0; o < FBM_OCT; o++) {
-              const fx = gx * freq + ox
-              const fy = gy * freq + oy
-              const fz = ot + o * 5.9
-              dx += (sk.noise(fx, fy,       fz) - 0.5) * amp
-              dy += (sk.noise(fx, fy + 400, fz) - 0.5) * amp
-              ma += amp; amp *= 0.50; freq *= 2.05
-            }
-            const idx = gy * GRID_W + gx
-            gdx[idx] = (dx / ma) * FBM_STR
-            gdy[idx] = (dy / ma) * FBM_STR
-          }
+      // ── Seeded RNG ─────────────────────────────────────────────
+      function mkRng(seed) {
+        let s = (seed >>> 0) || 1
+        return () => {
+          s |= 0; s = s + 0x6D2B79F5 | 0
+          let t = Math.imul(s ^ s >>> 15, 1 | s)
+          t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t
+          return ((t ^ t >>> 14) >>> 0) / 4294967296
         }
       }
 
-      function sampleDisplace(sx, sy) {
-        const gxf = (sx / W) * (GRID_W - 1)
-        const gyf = (sy / H) * (GRID_H - 1)
-        const gx0 = Math.max(0, Math.min(GRID_W - 2, gxf | 0))
-        const gy0 = Math.max(0, Math.min(GRID_H - 2, gyf | 0))
-        const tx  = gxf - gx0, ty = gyf - gy0
-        const i00 = gy0 * GRID_W + gx0
-        return [
-          gdx[i00]*(1-tx)*(1-ty) + gdx[i00+1]*tx*(1-ty) + gdx[i00+GRID_W]*(1-tx)*ty + gdx[i00+GRID_W+1]*tx*ty,
-          gdy[i00]*(1-tx)*(1-ty) + gdy[i00+1]*tx*(1-ty) + gdy[i00+GRID_W]*(1-tx)*ty + gdy[i00+GRID_W+1]*tx*ty,
-        ]
+      // ── Palettes ───────────────────────────────────────────────
+      const PALETTES = [
+        { bg:[2,4,8],   fg:[0,180,255],   accent:[0,255,200],   dim:[0,80,120]   },
+        { bg:[4,8,4],   fg:[0,255,120],   accent:[180,255,80],  dim:[0,100,40]   },
+        { bg:[8,4,2],   fg:[255,120,0],   accent:[255,200,60],  dim:[120,40,0]   },
+        { bg:[6,2,10],  fg:[180,80,255],  accent:[255,80,200],  dim:[80,20,120]  },
+        { bg:[2,6,8],   fg:[60,200,240],  accent:[200,240,255], dim:[20,80,100]  },
+        { bg:[2,2,2],   fg:[200,210,220], accent:[255,255,255], dim:[60,70,80]   },
+        { bg:[8,6,2],   fg:[255,210,60],  accent:[255,255,160], dim:[120,90,0]   },
+        { bg:[2,4,6],   fg:[80,180,220],  accent:[160,230,255], dim:[20,60,90]   },
+        { bg:[6,2,4],   fg:[255,60,120],  accent:[255,160,180], dim:[120,0,40]   },
+        { bg:[3,5,3],   fg:[100,220,160], accent:[200,255,220], dim:[30,80,50]   },
+      ]
+      const CONFIGS = ['orbital','lattice','constellation','field','radial','hybrid']
+      const AXIS_ROLES = [
+        { id:'breatheRate',  }, { id:'breatheDepth' }, { id:'rotSpeed'    },
+        { id:'noiseFlow'    }, { id:'linkDist'      }, { id:'glowAmt'     },
+        { id:'pulseSpeed'   }, { id:'density'       }, { id:'fadeRate'    },
+        { id:'mouseField'   },
+      ]
+
+      function resolveAxis(roleId, v) {
+        switch(roleId) {
+          case 'breatheRate':  return { breatheRate:  0.0005 + v * 0.008  }
+          case 'breatheDepth': return { breatheDepth: 0.02   + v * 0.4    }
+          case 'rotSpeed':     return { rotSpeed:     0.0001 + v * 0.003  }
+          case 'noiseFlow':    return { noiseFlow:    0.0002 + v * 0.004  }
+          case 'linkDist':     return { linkDist:     0.04   + v * 0.18   }
+          case 'glowAmt':      return { glowAmt:      0.0    + v * 2.0    }
+          case 'pulseSpeed':   return { pulseSpeed:   0.002  + v * 0.04   }
+          case 'density':      return { density:      0.3    + v * 1.4    }
+          case 'fadeRate':     return { fadeRate:     6      + v * 40     }
+          case 'mouseField':   return { mouseField:   0.0    + v * 1.0    }
+          default:             return {}
+        }
+      }
+
+      function randomizeUniverse(seed) {
+        const r = mkRng(seed)
+        const pal    = PALETTES[Math.floor(r() * PALETTES.length)]
+        const config = CONFIGS[Math.floor(r() * CONFIGS.length)]
+        const rolesCopy = [...AXIS_ROLES]
+        const xi    = Math.floor(r() * rolesCopy.length)
+        const xRole = rolesCopy.splice(xi, 1)[0]
+        const yRole = rolesCopy[Math.floor(r() * rolesCopy.length)]
+        return {
+          seed, pal, config, xRole, yRole,
+          baseBreathRate:  0.001 + r() * 0.003,
+          baseBreathDepth: 0.08  + r() * 0.25,
+          baseRotSpeed:    0.0003+ r() * 0.0015,
+          baseNoiseFlow:   0.0005+ r() * 0.002,
+          baseGlow:        0.3   + r() * 0.8,
+          basePulseSpeed:  0.005 + r() * 0.025,
+          baseLinkDist:    0.07  + r() * 0.12,
+          baseFadeRate:    14    + Math.floor(r() * 22),
+          baseMouseField:  0.3   + r() * 0.5,
+          centerX:         0.3   + r() * 0.4,
+          centerY:         0.3   + r() * 0.4,
+          ringCount:       2     + Math.floor(r() * 5),
+          baseParticleCount: 180 + Math.floor(r() * 320),
+          gridCols:        8     + Math.floor(r() * 16),
+          gridRows:        6     + Math.floor(r() * 10),
+          clusterCount:    3     + Math.floor(r() * 6),
+          particleSize:    1.0   + r() * 1.5,
+          trailMode:       r() < 0.45,
+        }
+      }
+
+      function buildParticles(p, W, H) {
+        const r = mkRng(p.seed + 77)
+        const cx = p.centerX * W, cy = p.centerY * H
+        const pts = []
+
+        if (p.config === 'orbital' || p.config === 'hybrid') {
+          for (let ring = 0; ring < p.ringCount; ring++) {
+            const radius  = (0.08 + ring * 0.08 + r() * 0.04) * Math.min(W, H)
+            const count   = 20 + ring * 18 + Math.floor(r() * 20)
+            const rotDir  = r() < 0.5 ? 1 : -1
+            const tiltFreq = 0.3 + r() * 1.2
+            const tiltAmp  = 0.05 + r() * 0.2
+            for (let i = 0; i < count; i++) {
+              pts.push({
+                type:'orbital', ring, radius, baseAngle:(i/count)*Math.PI*2,
+                angleOff:r()*Math.PI*2, rotDir, tiltFreq, tiltAmp, cx, cy,
+                breathOff:r()*Math.PI*2, size:p.particleSize*(0.6+r()*0.8),
+                alpha:120+Math.floor(r()*100), noiseOff:r()*100,
+                col: r()<0.7?'fg':'accent',
+              })
+            }
+          }
+        }
+
+        if (p.config === 'lattice') {
+          const gW = W/(p.gridCols+1), gH = H/(p.gridRows+1)
+          for (let col = 1; col <= p.gridCols; col++) {
+            for (let row = 1; row <= p.gridRows; row++) {
+              const jx=(r()-0.5)*gW*0.3, jy=(r()-0.5)*gH*0.3
+              pts.push({
+                type:'lattice', bx:col*gW+jx, by:row*gH+jy, x:col*gW+jx, y:row*gH+jy,
+                vx:0, vy:0, col:r()<0.15?'accent':'fg', col2:'dim',
+                alpha:80+Math.floor(r()*100), size:p.particleSize*(0.5+r()*0.8),
+                pulseOff:r()*Math.PI*2, noiseOff:r()*100, breathOff:r()*Math.PI*2,
+                isNode:r()<0.12,
+              })
+            }
+          }
+        }
+
+        if (p.config === 'constellation') {
+          for (let c = 0; c < p.clusterCount; c++) {
+            const clCx=(0.1+r()*0.8)*W, clCy=(0.1+r()*0.8)*H
+            const clR=(0.06+r()*0.14)*Math.min(W,H)
+            const n=6+Math.floor(r()*20)
+            for (let i = 0; i < n; i++) {
+              const a=r()*Math.PI*2, d=r()*clR
+              pts.push({
+                type:'constellation', cluster:c,
+                x:clCx+Math.cos(a)*d, y:clCy+Math.sin(a)*d,
+                bx:clCx+Math.cos(a)*d, by:clCy+Math.sin(a)*d,
+                clCx, clCy, alpha:100+Math.floor(r()*120),
+                size:p.particleSize*(0.5+r()*1.0), breathOff:r()*Math.PI*2,
+                noiseOff:r()*100, pulseOff:r()*Math.PI*2,
+                col:r()<0.2?'accent':'fg', isBright:r()<0.15,
+              })
+            }
+          }
+        }
+
+        if (p.config === 'field' || p.config === 'hybrid') {
+          const count = p.config==='hybrid' ? Math.floor(p.baseParticleCount*0.4) : p.baseParticleCount
+          for (let i = 0; i < count; i++) {
+            pts.push({
+              type:'field', x:r()*W, y:r()*H, vx:(r()-0.5)*0.3, vy:(r()-0.5)*0.3,
+              alpha:60+Math.floor(r()*100), size:p.particleSize*(0.4+r()*0.7),
+              noiseOff:r()*100, breathOff:r()*Math.PI*2,
+              age:Math.floor(r()*200), maxAge:150+Math.floor(r()*250),
+              col:r()<0.15?'accent':'fg',
+            })
+          }
+        }
+
+        if (p.config === 'radial') {
+          const armCount=3+Math.floor(r()*5), perArm=30+Math.floor(r()*50)
+          for (let arm = 0; arm < armCount; arm++) {
+            const armAngle=(arm/armCount)*Math.PI*2+r()*0.3
+            for (let i = 0; i < perArm; i++) {
+              const t2=i/perArm, d=t2*Math.min(W,H)*(0.25+r()*0.2)
+              pts.push({
+                type:'radial', arm, armAngle, d, spread:(r()-0.5)*0.15*Math.PI,
+                cx, cy, alpha:200-Math.floor(t2*160), size:p.particleSize*(1.2-t2*0.7),
+                breathOff:r()*Math.PI*2, noiseOff:r()*100, col:t2<0.2?'accent':'fg',
+              })
+            }
+          }
+        }
+
+        return pts
+      }
+
+      function drawFrame(pg2, pts, params, W, H, t2, smx2, smy2, res) {
+        const p = params, pal = p.pal, bg = pal.bg
+        const breathRate  = res.breatheRate  ?? p.baseBreathRate
+        const breathDepth = res.breatheDepth ?? p.baseBreathDepth
+        const rotSpeed    = res.rotSpeed     ?? p.baseRotSpeed
+        const noiseFlow   = res.noiseFlow    ?? p.baseNoiseFlow
+        const glowAmt     = res.glowAmt      ?? p.baseGlow
+        const linkDist    = (res.linkDist    ?? p.baseLinkDist) * Math.min(W, H)
+        const fadeRate    = res.fadeRate     ?? p.baseFadeRate
+        const mouseField  = res.mouseField   ?? p.baseMouseField
+        const density     = res.density      ?? 1.0
+        const mxPx = smx2 * W, myPx = smy2 * H
+
+        const getCol = (key) => key==='fg' ? pal.fg : key==='accent' ? pal.accent : pal.dim
+
+        if (p.trailMode) {
+          pg2.noStroke(); pg2.fill(bg[0],bg[1],bg[2],fadeRate); pg2.rect(0,0,W,H)
+        } else {
+          pg2.background(bg[0],bg[1],bg[2])
+        }
+
+        const globalBreath = Math.sin(t2 * breathRate) * breathDepth
+
+        // Connection lines
+        const linkPts = pts.filter(pt => pt.type==='lattice' || pt.type==='constellation')
+        for (let i = 0; i < linkPts.length; i++) {
+          for (let j = i+1; j < linkPts.length; j++) {
+            const a=linkPts[i], b=linkPts[j]
+            if (a.cluster!==undefined && a.cluster!==b.cluster) continue
+            const dx=a.x-b.x, dy=a.y-b.y, d=Math.sqrt(dx*dx+dy*dy)
+            if (d < linkDist) {
+              const t3=1-d/linkDist, c=getCol(a.col2??'dim')
+              const alpha=Math.round(t3*28*(1+globalBreath))
+              pg2.stroke(c[0],c[1],c[2],alpha); pg2.strokeWeight(0.4)
+              pg2.noFill(); pg2.line(a.x,a.y,b.x,b.y)
+            }
+          }
+        }
+
+        for (let i = 0; i < pts.length; i++) {
+          const pt = pts[i]
+          const breathPhase = Math.sin(t2 * breathRate + pt.breathOff) * breathDepth
+
+          if (pt.type === 'orbital') {
+            pt.angleOff += rotSpeed * pt.rotDir
+            const ang=pt.baseAngle+pt.angleOff
+            const tilt=Math.sin(t2*breathRate*pt.tiltFreq+pt.breathOff)*pt.tiltAmp
+            const r2=pt.radius*(1+breathPhase*0.3)
+            pt.x=pt.cx+Math.cos(ang)*r2; pt.y=pt.cy+Math.sin(ang)*r2*(0.4+0.6*(1-Math.abs(tilt)))
+            const mdx=mxPx-pt.x, mdy=myPx-pt.y, md=Math.sqrt(mdx*mdx+mdy*mdy)
+            if (md<120&&md>1) { const f=(1-md/120)*mouseField*0.6; pt.x+=mdx/md*f; pt.y+=mdy/md*f }
+          }
+          if (pt.type === 'lattice') {
+            const na=sk.noise(pt.bx*noiseFlow,pt.by*noiseFlow,t2*0.003)*Math.PI*4
+            pt.vx+=Math.cos(na)*0.03; pt.vy+=Math.sin(na)*0.03
+            pt.vx*=0.92; pt.vy*=0.92
+            pt.vx+=(pt.bx-pt.x)*0.008; pt.vy+=(pt.by-pt.y)*0.008
+            pt.x+=pt.vx; pt.y+=pt.vy
+            const mdx=pt.x-mxPx, mdy=pt.y-myPx, md=Math.sqrt(mdx*mdx+mdy*mdy)
+            if (md<80&&md>1) { const f=(1-md/80)*mouseField*0.4; pt.x+=mdx/md*f; pt.y+=mdy/md*f }
+          }
+          if (pt.type === 'constellation') {
+            const na=sk.noise(pt.bx*noiseFlow,pt.by*noiseFlow,t2*0.002)*Math.PI*2
+            pt.x+=Math.cos(na)*0.08; pt.y+=Math.sin(na)*0.08
+            pt.x+=(pt.bx-pt.x)*0.003; pt.y+=(pt.by-pt.y)*0.003
+          }
+          if (pt.type === 'field') {
+            const na=sk.noise(pt.x*noiseFlow,pt.y*noiseFlow,t2*0.003+pt.noiseOff)*Math.PI*4
+            pt.vx+=Math.cos(na)*0.06; pt.vy+=Math.sin(na)*0.06
+            pt.vx*=0.94; pt.vy*=0.94; pt.x+=pt.vx; pt.y+=pt.vy; pt.age++
+            if (pt.x<0||pt.x>W||pt.y<0||pt.y>H||pt.age>pt.maxAge) {
+              const rr=mkRng(params.seed+i+t2)
+              pt.x=rr()*W; pt.y=rr()*H; pt.vx=0; pt.vy=0; pt.age=0
+            }
+          }
+          if (pt.type === 'radial') {
+            const a=pt.armAngle+pt.spread+t2*rotSpeed*pt.arm*0.3
+            pt.x=pt.cx+Math.cos(a)*pt.d*(1+breathPhase*0.15)
+            pt.y=pt.cy+Math.sin(a)*pt.d*(1+breathPhase*0.15)
+          }
+
+          const c=getCol(pt.col)
+          const alpha=Math.round(pt.alpha*(1+breathPhase*0.4)*Math.min(density,1.4))
+          const sz=(pt.size??1)*(1+breathPhase*0.2)
+          pg2.noStroke()
+          if (glowAmt>0.05) {
+            pg2.fill(c[0],c[1],c[2],Math.round(alpha*0.05*glowAmt)); pg2.ellipse(pt.x,pt.y,sz*10*glowAmt,sz*10*glowAmt)
+            pg2.fill(c[0],c[1],c[2],Math.round(alpha*0.12*glowAmt)); pg2.ellipse(pt.x,pt.y,sz*5*glowAmt,sz*5*glowAmt)
+          }
+          pg2.fill(c[0],c[1],c[2],alpha); pg2.ellipse(pt.x,pt.y,sz*2,sz*2)
+          if (pt.isNode||pt.isBright) {
+            const ac=pal.accent
+            pg2.fill(ac[0],ac[1],ac[2],Math.round(alpha*0.9)); pg2.ellipse(pt.x,pt.y,sz*2.5,sz*2.5)
+            if (pt.isNode) {
+              const tl=sz*3
+              pg2.stroke(ac[0],ac[1],ac[2],Math.round(alpha*0.4)); pg2.strokeWeight(0.5); pg2.noFill()
+              pg2.line(pt.x-tl,pt.y,pt.x+tl,pt.y); pg2.line(pt.x,pt.y-tl,pt.x,pt.y+tl)
+            }
+          }
+          if (pt.type==='field') {
+            const spd=Math.sqrt(pt.vx*pt.vx+pt.vy*pt.vy)
+            if (spd>0.05) {
+              const dl=Math.min(spd*4,6)
+              pg2.stroke(c[0],c[1],c[2],Math.round(alpha*0.5)); pg2.strokeWeight(sz*0.7); pg2.noFill()
+              pg2.line(pt.x,pt.y,pt.x-pt.vx/spd*dl,pt.y-pt.vy/spd*dl)
+            }
+          }
+        }
+
+        // Scanning line
+        const scanY=((t2*0.003)%1.0)*H
+        pg2.noFill()
+        pg2.stroke(pal.fg[0],pal.fg[1],pal.fg[2],12); pg2.strokeWeight(1); pg2.line(0,scanY,W,scanY)
+        pg2.stroke(pal.fg[0],pal.fg[1],pal.fg[2],5);  pg2.strokeWeight(3); pg2.line(0,scanY,W,scanY)
+      }
+
+      let W, H, params, pts, pg, frameT = 0
+      let mx = 0.5, my = 0.5, smx = 0.5, smy = 0.5
+
+      function getSize() { return { w: container.clientWidth || 2, h: container.clientHeight || 2 } }
+
+      function init() {
+        const sz = getSize(); W = sz.w; H = sz.h
+        sk.noiseSeed(params.seed)
+        pts = buildParticles(params, W, H)
+        if (pg) pg.remove()
+        pg = sk.createGraphics(W, H)
+        pg.pixelDensity(1)
+        pg.colorMode(sk.RGB, 255, 255, 255, 255)
+        pg.background(...params.pal.bg)
+        frameT = 0
       }
 
       sk.setup = function() {
-        const sz = getSize()
-        W = sz.w; H = sz.h
+        const sz = getSize(); W = sz.w; H = sz.h
         sk.createCanvas(W, H)
         sk.pixelDensity(1)
+        sk.colorMode(sk.RGB, 255, 255, 255, 255)
         sk.frameRate(60)
-        sk.noStroke()
-        randomise()
-        for (let i = 0; i < N; i++) spawnParticle(i, true)
+        params = randomizeUniverse(Math.floor(Math.random() * 999999))
+        init()
       }
 
-      sk.mouseMoved   = function() { tmx = Math.max(0, Math.min(1, sk.mouseX / W)); tmy = Math.max(0, Math.min(1, sk.mouseY / H)) }
-      sk.mouseDragged = function() { tmx = Math.max(0, Math.min(1, sk.mouseX / W)); tmy = Math.max(0, Math.min(1, sk.mouseY / H)) }
+      sk.mouseMoved   = function() { mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)) }
+      sk.mouseDragged = function() { mx=Math.max(0,Math.min(1,sk.mouseX/W)); my=Math.max(0,Math.min(1,sk.mouseY/H)) }
 
       sk.mousePressed = function() {
-        randomise()
-        for (let i = 0; i < N; i++) spawnParticle(i, true)
+        params = randomizeUniverse(Math.floor(Math.random() * 999999))
+        init()
       }
 
       sk.windowResized = function() {
-        const sz = getSize()
-        W = sz.w; H = sz.h
-        sk.resizeCanvas(W, H)
+        const sz = getSize(); W = sz.w; H = sz.h
+        sk.resizeCanvas(W, H); init()
       }
 
       const ro = new ResizeObserver(() => {
         const sz = getSize()
-        if (sz.w !== W || sz.h !== H) {
-          W = sz.w; H = sz.h
-          sk.resizeCanvas(W, H)
-        }
+        if (sz.w !== W || sz.h !== H) { W = sz.w; H = sz.h; sk.resizeCanvas(W, H); init() }
       })
       ro.observe(container)
       const _origRemove = sk.remove.bind(sk)
@@ -142,68 +345,12 @@ export default function ResonantLogo({ className = '' }) {
 
       sk.draw = function() {
         frameT++
-
-        smx += (tmx - smx) * 0.025
-        smy += (tmy - smy) * 0.025
-        camVX += ((smx - 0.5) * 1.1 - camVX) * 0.03
-        camVY += ((smy - 0.5) * 0.65 - camVY) * 0.03
-        camX  += camVX
-        camY  += camVY
-        camZ  += CAM_SPEED
-
-        const nt = camZ * VOL_T
-        const ft = frameT * FBM_T
-        const cx = W / 2, cy = H / 2
-
-        bakeFractalGrid(ft)
-        sk.background(0)
-
-        for (let i = 0; i < N; i++) {
-          const dz = pz[i] - camZ
-
-          if (dz < -10) {
-            spawnParticle(i, false)
-            continue
-          }
-          if (dz > FIELD_D) continue
-
-          const scale  = FOV / (Math.max(dz, 1) + FOV)
-          const rawSx  = cx + (px[i] - camX) * scale
-          const rawSy  = cy + (py[i] - camY) * scale
-
-          const margin = FBM_STR + 28
-          if (rawSx + margin < 0 || rawSx - margin > W ||
-              rawSy + margin < 0 || rawSy - margin > H) continue
-
-          const [ddx, ddy] = sampleDisplace(rawSx, rawSy)
-          const sx = rawSx + ddx
-          const sy = rawSy + ddy
-
-          const nv = sk.noise(
-            (px[i] - camStartX) * VOL_SCALE + noiseOX * 0.0005,
-            (py[i] - camStartY) * VOL_SCALE + noiseOY * 0.0005,
-            pz[i]               * VOL_SCALE * 0.20 + noiseOZ * 0.0005 + nt
-          )
-
-          const sz2 = psize[i] * scale * (0.3 + nv * 1.1)
-          if (sz2 < 0.3) continue
-
-          const NEAR_FADE = 300
-          const df       = 1.0 - dz / FIELD_D
-          const nearFade = dz < NEAR_FADE ? dz / NEAR_FADE : 1.0
-          const alpha    = df * df * nearFade * 255 | 0
-          if (alpha < 3) continue
-
-          const angle = nv * 6.2832
-          const asp   = pasp[i] * (0.6 + nv * 0.8)
-
-          sk.fill(255, 255, 255, alpha)
-          sk.translate(sx, sy)
-          sk.rotate(angle)
-          sk.ellipse(0, 0, sz2 * 2, sz2 * 2 * asp)
-          sk.rotate(-angle)
-          sk.translate(-sx, -sy)
-        }
+        smx += (mx-smx)*0.03; smy += (my-smy)*0.03
+        const rx = resolveAxis(params.xRole.id, smx)
+        const ry = resolveAxis(params.yRole.id, smy)
+        const res = Object.assign({}, rx, ry)
+        drawFrame(pg, pts, params, W, H, frameT, smx, smy, res)
+        sk.image(pg, 0, 0)
       }
     }
 
