@@ -19,12 +19,41 @@ function isRTL(text) {
   return rtlCount / letters.length > 0.3
 }
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   'Will AI accelerate geopolitical fragmentation?',
   'Post-AGI economic models',
   'Climate tipping points & governance',
   'The future of democratic institutions',
+  'Can universal basic income scale globally?',
+  'Is nuclear energy essential for net-zero?',
+  'What replaces nation-states in a multipolar world?',
+  'The end of truth in the information age',
+  'Will brain-computer interfaces widen inequality?',
+  'How should AI be governed — who decides?',
+  'What does meaningful work look like post-automation?',
+  'Should we colonize Mars before fixing Earth?',
+  'The ethics of longevity tech for the wealthy few',
+  'Can democracy survive social media?',
+  'What happens when AI outsmarts its creators?',
+  'Is degrowth economically viable?',
+  'The future of cities in an era of remote work',
+  'Redesigning education for a world without routine jobs',
+  'The geopolitics of rare earth minerals',
+  'Will quantum computing break modern encryption?',
+  'Is transhumanism the next civil rights frontier?',
+  'The role of religion in a post-scarcity world',
+  'Can we engineer our way out of climate change?',
+  'What does privacy mean in 2040?',
 ]
+
+function pickSuggestions(n = 4) {
+  const pool = [...ALL_SUGGESTIONS]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, n)
+}
 
 const STATIC_AGENTS = [
   { id: 'claude',  name: 'Claude',  tier: 'premium' },
@@ -35,29 +64,34 @@ const STATIC_AGENTS = [
   { id: 'mistral', name: 'Mistral', tier: 'free' },
 ]
 
-function PhaseBar({ currentPhase, rounds }) {
+function PhaseBar({ currentPhase, rounds, status }) {
   const phases = ['brainstorm']
   if (rounds >= 3) phases.push('critique')
   if (rounds >= 4) phases.push('rebuttal')
   phases.push('synthesis')
 
+  const allDone = status === 'done'
+
   return (
     <div className="flex items-center gap-3 px-6 py-2.5 border-b border-white/[0.05] shrink-0">
       {phases.map((phase, i) => {
-        const isDone = PHASE_ORDER.indexOf(currentPhase) > PHASE_ORDER.indexOf(phase)
+        const isCompleted = allDone || (currentPhase && PHASE_ORDER.indexOf(currentPhase) > PHASE_ORDER.indexOf(phase))
         const isActive = phase === currentPhase
         return (
           <div key={phase} className="flex items-center gap-3">
             {i > 0 && <div className="w-5 h-px bg-white/[0.07]" />}
             <span
-              className="text-[11px] capitalize tracking-wide transition-colors"
+              className="text-[11px] capitalize tracking-wide transition-colors flex items-center gap-1"
               style={{
-                color: isActive ? '#B873AE' : isDone ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)',
+                color: isActive ? '#B873AE' : isCompleted ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.08)',
                 transitionDuration: '500ms',
               }}
             >
               {isActive && (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-mauve mr-1.5 mb-px animate-pulse_dot" />
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-mauve animate-pulse_dot" />
+              )}
+              {isCompleted && !isActive && (
+                <IconCheck size={9} />
               )}
               {phase}
             </span>
@@ -81,9 +115,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
       </div>
 
       {/* Title — mobile: slim header bar when collapsed; desktop: overlaid on animation */}
-      <div className="relative flex flex-row items-center justify-between pointer-events-none animate-fadein
-                      md:flex-col md:items-start md:justify-center
-                      md:absolute md:inset-0 md:px-12 px-6 py-3 md:py-0">
+      <div className={`relative pointer-events-none animate-fadein md:flex-col md:items-start md:justify-center md:absolute md:inset-0 md:px-12 px-6 py-3 md:py-0 ${collapsed ? 'flex flex-row items-center justify-between' : 'flex flex-col items-start justify-end'}`}>
         <h1
           className="font-bold text-white tracking-tight"
           style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap' }}
@@ -104,11 +136,11 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
           </button>
         )}
 
-        <p className={`mt-1 text-white font-medium ${collapsed ? 'hidden md:block' : ''}`}
+        <p className={`text-white font-medium ${collapsed ? 'hidden md:block' : 'mt-1'}`}
            style={{ fontSize: 'clamp(13px, 2.2vw, 40px)', opacity: 0.9 }}>
           AI think tank
         </p>
-        <p className={`mt-0.5 text-white font-light ${collapsed ? 'hidden md:block' : ''}`}
+        <p className={`text-white font-light ${collapsed ? 'hidden md:block' : 'mt-0.5 mb-4 md:mb-0'}`}
            style={{ fontSize: 'clamp(10px, 1.3vw, 20px)', opacity: 0.5 }}>
           Multi model debate
         </p>
@@ -130,6 +162,7 @@ function MainInputArea({
 }) {
   const [synthesisId, setSynthesisId] = useState('')
   const [confirmToggleId, setConfirmToggleId] = useState(null)
+  const [suggestions] = useState(() => pickSuggestions(4))
   const textareaRef = useRef(null)
 
   const hasTyped = prompt.trim().length > 0
@@ -190,12 +223,12 @@ function MainInputArea({
           onClick={onToggleSettings}
           className="transition-colors"
           style={{
-            color: showSettings ? '#B873AE' : 'rgba(255,255,255,0.25)',
+            color: showSettings ? '#B873AE' : 'rgba(255,255,255,0.7)',
             transitionDuration: '500ms',
           }}
           title="Settings"
         >
-          <IconCog size={16} />
+          <IconCog size={24} />
         </button>
       </div>
 
@@ -368,7 +401,7 @@ function MainInputArea({
           transitionDuration: '500ms',
         }}
       >
-        {SUGGESTIONS.map((s, i) => (
+        {suggestions.map((s, i) => (
           <span key={s} className="flex items-center gap-3">
             {i > 0 && (
               <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '11px' }}>|</span>
@@ -479,8 +512,8 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         </button>
       </div>
 
-      {state.currentPhase && (
-        <PhaseBar currentPhase={state.currentPhase} rounds={rounds} />
+      {state.status !== 'idle' && (
+        <PhaseBar currentPhase={state.currentPhase} rounds={rounds} status={state.status} />
       )}
 
       {/* Single scrollable content area */}

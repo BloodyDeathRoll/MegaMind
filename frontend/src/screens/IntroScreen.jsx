@@ -1,14 +1,45 @@
+import { useState } from 'react'
 import LLMButton from '../components/LLMButton'
 import { IconCog } from '../components/LLMIcons'
 
-const SUGGESTIONS = [
+const ALL_SUGGESTIONS = [
   'Will AI accelerate geopolitical fragmentation?',
   'Post-AGI economic models',
   'Climate tipping points & governance',
   'The future of democratic institutions',
+  'Can universal basic income scale globally?',
+  'Is nuclear energy essential for net-zero?',
+  'What replaces nation-states in a multipolar world?',
+  'The end of truth in the information age',
+  'Will brain-computer interfaces widen inequality?',
+  'How should AI be governed — who decides?',
+  'What does meaningful work look like post-automation?',
+  'Should we colonize Mars before fixing Earth?',
+  'The ethics of longevity tech for the wealthy few',
+  'Can democracy survive social media?',
+  'What happens when AI outsmarts its creators?',
+  'Is degrowth economically viable?',
+  'The future of cities in an era of remote work',
+  'Redesigning education for a world without routine jobs',
+  'The geopolitics of rare earth minerals',
+  'Will quantum computing break modern encryption?',
+  'Is transhumanism the next civil rights frontier?',
+  'The role of religion in a post-scarcity world',
+  'Can we engineer our way out of climate change?',
+  'What does privacy mean in 2040?',
 ]
 
+function pickSuggestions(n = 4) {
+  const pool = [...ALL_SUGGESTIONS]
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, n)
+}
+
 export default function IntroScreen({ agents, onSupplyAPIs, onFreeTier }) {
+  const [suggestions] = useState(() => pickSuggestions(4))
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Menu bar */}
@@ -65,7 +96,7 @@ export default function IntroScreen({ agents, onSupplyAPIs, onFreeTier }) {
         className="shrink-0 flex items-center justify-center flex-wrap gap-x-3 px-8 border-t"
         style={{ height: '54px', borderColor: 'rgba(255,255,255,0.04)' }}
       >
-        {SUGGESTIONS.map((s, i) => (
+        {suggestions.map((s, i) => (
           <span key={s} className="flex items-center gap-3">
             {i > 0 && <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '11px' }}>|</span>}
             <span className="text-[12px] whitespace-nowrap" style={{ color: 'rgba(255,255,255,0.25)' }}>
