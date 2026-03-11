@@ -69,21 +69,32 @@ function PhaseBar({ currentPhase, rounds }) {
 }
 
 // Shared left panel: animation + branding
-function LeftPanel() {
+function LeftPanel({ collapsed = false }) {
   return (
-    <div className="relative overflow-hidden shrink-0" style={{ width: '50%' }}>
-      <ResonantLogo className="absolute inset-0 w-full h-full" />
-      <div className="absolute inset-0 flex flex-col justify-center px-12 animate-fadein pointer-events-none">
+    <div className="shrink-0 overflow-hidden w-full md:w-1/2 relative flex flex-col md:block">
+      {/* Animation — mobile: transitions height; desktop: fills panel via absolute inset */}
+      <div
+        className="relative overflow-hidden transition-all duration-500 md:absolute md:inset-0 md:!h-auto"
+        style={collapsed ? { height: 0, opacity: 0 } : { height: 'min(45vw, 50vh)' }}
+      >
+        <ResonantLogo className="absolute inset-0 w-full h-full" />
+      </div>
+
+      {/* Title — mobile: sits below animation (or tiny bar when collapsed); desktop: overlaid */}
+      <div className="relative flex flex-col justify-center pointer-events-none animate-fadein
+                      md:absolute md:inset-0 md:px-12 px-6 py-3 md:py-0">
         <h1
           className="font-bold text-white tracking-tight"
-          style={{ fontSize: 'clamp(44px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap' }}
+          style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap' }}
         >
           MegaMind
         </h1>
-        <p className="mt-1 text-white font-medium" style={{ fontSize: 'clamp(18px, 2.2vw, 40px)', opacity: 0.9 }}>
+        <p className={`mt-1 text-white font-medium ${collapsed ? 'hidden md:block' : ''}`}
+           style={{ fontSize: 'clamp(13px, 2.2vw, 40px)', opacity: 0.9 }}>
           AI think tank
         </p>
-        <p className="mt-0.5 text-white font-light" style={{ fontSize: 'clamp(11px, 1.3vw, 20px)', opacity: 0.5 }}>
+        <p className={`mt-0.5 text-white font-light ${collapsed ? 'hidden md:block' : ''}`}
+           style={{ fontSize: 'clamp(10px, 1.3vw, 20px)', opacity: 0.5 }}>
           Multi model debate
         </p>
       </div>
@@ -545,6 +556,7 @@ function gtagPage(path, title) {
 export default function App() {
   // Screen: 'intro' | 'apis' | 'main'
   const [appScreen, setAppScreen] = useState('intro')
+  const [animationCollapsed, setAnimationCollapsed] = useState(false)
 
   // Agent catalogue from backend (with tier + available flags)
   const [availableAgents, setAvailableAgents] = useState(STATIC_AGENTS)
@@ -591,6 +603,7 @@ export default function App() {
       .filter(a => a.tier === 'free')
       .map(a => a.id)
     setActiveIds(freeIds)
+    setAnimationCollapsed(true)
     setAppScreen('main')
     gtagPage('/main', 'Think Tank')
   }
@@ -598,6 +611,7 @@ export default function App() {
   // Intro → API path: go to APIs screen
   function handleSupplyAPIs() {
     setApisReturnScreen('intro')
+    setAnimationCollapsed(true)
     setAppScreen('apis')
     gtagPage('/apis', 'Add APIs')
   }
@@ -607,6 +621,7 @@ export default function App() {
     setApiKeys(keys)
     try { localStorage.setItem('megamind_api_keys', JSON.stringify(keys)) } catch {}
     setActiveIds(enabledIds)
+    setAnimationCollapsed(true)
     setAppScreen('main')
     gtagPage('/main', 'Think Tank')
   }
@@ -636,8 +651,8 @@ export default function App() {
   const hasDebate = state.status !== 'idle'
 
   return (
-    <div className="h-full flex bg-ink overflow-hidden">
-      <LeftPanel />
+    <div className="h-full flex flex-col md:flex-row bg-ink overflow-hidden">
+      <LeftPanel collapsed={animationCollapsed} />
 
       {/* Right panel — switches between screens */}
       <div className="flex-1 flex flex-col min-h-0 bg-ink overflow-hidden">
