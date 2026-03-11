@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import LLMButton from '../components/LLMButton'
-import { IconCog } from '../components/LLMIcons'
 
 const ALL_SUGGESTIONS = [
   'Will AI accelerate geopolitical fragmentation?',
@@ -38,27 +36,10 @@ function pickSuggestions(n = 4) {
   return pool.slice(0, n)
 }
 
-export default function IntroScreen({ agents, onSupplyAPIs, onFreeTier }) {
+export default function IntroScreen({ onSupplyAPIs, onFreeTier }) {
   const [suggestions] = useState(() => pickSuggestions(4))
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* Menu bar */}
-      <div className="flex items-center justify-between px-6 shrink-0" style={{ height: '74px' }}>
-        <div />
-        <div className="flex items-center gap-1">
-          {agents.filter(a => a.tier === 'free').map(agent => (
-            <LLMButton
-              key={agent.id}
-              agent={agent}
-              active={true}
-              available={agent.available !== false}
-              disabled
-            />
-          ))}
-        </div>
-        <IconCog size={16} className="text-white/25 hover:text-white/60 transition-colors cursor-pointer" style={{ transitionDuration: '500ms' }} />
-      </div>
-
       {/* Center content */}
       <div className="flex-1 flex items-center justify-center px-6 md:px-10 py-6 min-h-0">
         <div className="w-full max-w-[520px] animate-fadein">

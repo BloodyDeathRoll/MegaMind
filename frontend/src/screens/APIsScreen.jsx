@@ -61,88 +61,88 @@ function APILine({ agent, apiKey, onKeyChange, enabled, onToggle, onRemove, isFr
   }
 
   return (
-    <div
-      className="flex items-center gap-4 transition-all"
-      style={{ transitionDuration: '500ms' }}
-    >
+    <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-4 transition-all" style={{ transitionDuration: '500ms' }}>
       {/* Label */}
-      <div className="flex items-center gap-2 shrink-0" style={{ width: '170px' }}>
+      <div className="flex items-center gap-2 shrink-0 md:w-[170px]">
         <AgentIcon agentId={agent.id} size={14} />
         <span className="text-[14px] text-white/80">{agent.label}</span>
       </div>
 
-      {/* Key input area */}
-      <div
-        className="flex-1 flex items-center justify-between px-4 rounded-xl transition-all"
-        style={{
-          background: '#18161A',
-          height: '42px',
-          border: '1px solid rgba(255,255,255,0.04)',
-          transitionDuration: '500ms',
-        }}
-      >
-        {isFree ? (
-          <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-            Not Needed
-          </span>
-        ) : (
-          <input
-            type={showKey ? 'text' : 'password'}
-            value={apiKey || ''}
-            onChange={e => onKeyChange(e.target.value)}
-            placeholder={agent.placeholder}
-            className="flex-1 bg-transparent text-[13px] text-white/80 focus:outline-none min-w-0 mr-2"
-            style={{ caretColor: '#B873AE' }}
-          />
-        )}
-
-        {/* Icons */}
-        <div className="flex items-center gap-3 shrink-0">
-          {!isFree && (
-            <>
-              {hasKey && (
-                <button
-                  onClick={() => setShowKey(v => !v)}
-                  className="transition-colors"
-                  style={{
-                    color: showKey ? 'rgba(184,115,174,0.8)' : 'rgba(255,255,255,0.25)',
-                    transitionDuration: '500ms',
-                  }}
-                  title={showKey ? 'Hide key' : 'Show key'}
-                >
-                  <IconEye size={13} />
-                </button>
-              )}
-              {hasKey && (
-                <button
-                  onClick={handleCopy}
-                  className="transition-colors"
-                  style={{
-                    color: copied ? 'rgba(184,115,174,0.9)' : 'rgba(255,255,255,0.25)',
-                    transitionDuration: '500ms',
-                  }}
-                  title="Copy key"
-                >
-                  {copied ? <IconCheck size={10} /> : <IconCopy size={13} />}
-                </button>
-              )}
-              {onRemove && (
-                <button
-                  onClick={onRemove}
-                  className="transition-colors hover:text-red-400/70"
-                  style={{ color: 'rgba(255,255,255,0.2)', transitionDuration: '500ms' }}
-                  title="Remove key"
-                >
-                  <IconX size={10} />
-                </button>
-              )}
-            </>
+      {/* Input + toggle row */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {/* Key input area */}
+        <div
+          className="flex-1 flex items-center justify-between px-4 rounded-xl transition-all min-w-0"
+          style={{
+            background: '#18161A',
+            height: '42px',
+            border: '1px solid rgba(255,255,255,0.04)',
+            transitionDuration: '500ms',
+          }}
+        >
+          {isFree ? (
+            <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              Not Needed
+            </span>
+          ) : (
+            <input
+              type={showKey ? 'text' : 'password'}
+              value={apiKey || ''}
+              onChange={e => onKeyChange(e.target.value)}
+              placeholder={agent.placeholder}
+              className="flex-1 bg-transparent text-[13px] text-white/80 focus:outline-none min-w-0 mr-2"
+              style={{ caretColor: '#B873AE' }}
+            />
           )}
-        </div>
-      </div>
 
-      {/* Toggle */}
-      <Toggle enabled={enabled} onToggle={onToggle} />
+          {/* Icons */}
+          <div className="flex items-center gap-3 shrink-0">
+            {!isFree && (
+              <>
+                {hasKey && (
+                  <button
+                    onClick={() => setShowKey(v => !v)}
+                    className="transition-colors"
+                    style={{
+                      color: showKey ? 'rgba(184,115,174,0.8)' : 'rgba(255,255,255,0.25)',
+                      transitionDuration: '500ms',
+                    }}
+                    title={showKey ? 'Hide key' : 'Show key'}
+                  >
+                    <IconEye size={13} />
+                  </button>
+                )}
+                {hasKey && (
+                  <button
+                    onClick={handleCopy}
+                    className="transition-colors"
+                    style={{
+                      color: copied ? 'rgba(184,115,174,0.9)' : 'rgba(255,255,255,0.25)',
+                      transitionDuration: '500ms',
+                    }}
+                    title="Copy key"
+                  >
+                    {copied ? <IconCheck size={10} /> : <IconCopy size={13} />}
+                  </button>
+                )}
+                {onRemove && (
+                  <button
+                    onClick={onRemove}
+                    className="transition-colors hover:text-red-400/70"
+                    style={{ color: 'rgba(255,255,255,0.2)', transitionDuration: '500ms' }}
+                    title="Remove key"
+                  >
+                    <IconX size={10} />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Toggle */}
+        <Toggle enabled={enabled} onToggle={onToggle} />
+      </div>
     </div>
   )
 }
@@ -205,7 +205,7 @@ export default function APIsScreen({ agents, initialKeys = {}, onSave, onBack })
         >
           ← Back
         </button>
-        <IconCog size={24} className="text-white/25 hover:text-white/60 transition-colors cursor-pointer" style={{ transitionDuration: '500ms' }} />
+        <IconCog size={16} className="text-white/25 hover:text-white/60 transition-colors cursor-pointer" style={{ transitionDuration: '500ms' }} />
       </div>
 
       {/* Content */}

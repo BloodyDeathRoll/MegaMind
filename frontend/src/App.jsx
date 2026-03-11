@@ -103,7 +103,7 @@ function PhaseBar({ currentPhase, rounds, status }) {
 }
 
 // Shared left panel: animation + branding
-function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
+function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick }) {
   return (
     <div className="shrink-0 overflow-hidden w-full md:w-1/2 relative flex flex-col md:block">
       {/* Animation — mobile: transitions height; desktop: fills panel via absolute inset */}
@@ -117,8 +117,9 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
       {/* Title — mobile not-collapsed: absolute overlay on animation; mobile collapsed: in-flow row; desktop: absolute overlay always */}
       <div className={`pointer-events-none animate-fadein md:absolute md:inset-0 md:flex-col md:items-start md:justify-center md:px-12 md:py-0 ${collapsed ? 'relative flex flex-row items-center justify-between px-6 py-3' : 'absolute inset-x-0 bottom-0 flex flex-col items-start px-6 pb-5'}`}>
         <h1
-          className="font-bold text-white tracking-tight"
-          style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap' }}
+          className={`font-bold text-white tracking-tight ${onTitleClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+          style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap', transitionDuration: '300ms' }}
+          onClick={onTitleClick}
         >
           MegaMind
         </h1>
@@ -651,7 +652,6 @@ export default function App() {
       .filter(a => a.tier === 'free')
       .map(a => a.id)
     setActiveIds(freeIds)
-    setAnimationCollapsed(true)
     setAppScreen('main')
     gtagPage('/main', 'Think Tank')
   }
@@ -659,7 +659,6 @@ export default function App() {
   // Intro → API path: go to APIs screen
   function handleSupplyAPIs() {
     setApisReturnScreen('intro')
-    setAnimationCollapsed(true)
     setAppScreen('apis')
     gtagPage('/apis', 'Add APIs')
   }
@@ -669,7 +668,6 @@ export default function App() {
     setApiKeys(keys)
     try { localStorage.setItem('megamind_api_keys', JSON.stringify(keys)) } catch {}
     setActiveIds(enabledIds)
-    setAnimationCollapsed(true)
     setAppScreen('main')
     gtagPage('/main', 'Think Tank')
   }
@@ -678,7 +676,18 @@ export default function App() {
     setRounds(selectedRounds)
     setShowSettings(false)
     setDebatePrompt(p)
+    setAnimationCollapsed(true)
     startDebate(p, activeIds, selectedRounds, synthesisAgentId, apiKeys)
+  }
+
+  // Clicking the MegaMind title resets to the ask screen with animation visible
+  function handleTitleClick() {
+    reset()
+    setPrompt('')
+    setAnimationCollapsed(false)
+    const hasAgents = activeIds.length > 0
+    setAppScreen(hasAgents ? 'main' : 'intro')
+    gtagPage(hasAgents ? '/main' : '/', hasAgents ? 'Think Tank' : 'Intro')
   }
 
   function handleReset() {
@@ -700,7 +709,7 @@ export default function App() {
 
   return (
     <div className="h-full flex flex-col md:flex-row bg-ink overflow-hidden">
-      <LeftPanel collapsed={animationCollapsed} hasDebate={hasDebate} onReset={handleReset} />
+      <LeftPanel collapsed={animationCollapsed} hasDebate={hasDebate} onReset={handleReset} onTitleClick={handleTitleClick} />
 
       {/* Right panel — switches between screens */}
       <div className="flex-1 flex flex-col min-h-0 bg-ink overflow-hidden">
@@ -708,7 +717,6 @@ export default function App() {
         {/* Intro screen */}
         {appScreen === 'intro' && (
           <IntroScreen
-            agents={availableAgents}
             onSupplyAPIs={handleSupplyAPIs}
             onFreeTier={handleFreeTier}
           />
