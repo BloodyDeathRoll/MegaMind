@@ -209,7 +209,7 @@ export default function APIsScreen({ agents, initialKeys = {}, onSave, onBack })
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-10 py-6 min-h-0 overflow-y-auto">
+      <div className="flex-1 flex items-start justify-center px-6 py-6 min-h-0 overflow-y-auto">
         <div className="w-full max-w-[640px] animate-fadein">
           <div className="rounded-2xl p-8" style={{ background: '#232024' }}>
             <h2 className="text-white text-[22px] font-medium mb-6">Add your APIs</h2>
