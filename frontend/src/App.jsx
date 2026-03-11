@@ -71,17 +71,42 @@ function PhaseBar({ currentPhase, rounds, status }) {
   phases.push('synthesis')
 
   const allDone = status === 'done'
+  const containerRef = useRef(null)
+  const activeRef = useRef(null)
+
+  // Auto-scroll active phase into view; when done, scroll to reveal synthesis at right edge
+  useEffect(() => {
+    const el = activeRef.current
+    const container = containerRef.current
+    if (!el || !container) return
+    const elLeft = el.offsetLeft
+    const elRight = elLeft + el.offsetWidth
+    const pad = 24
+    if (elRight + pad > container.scrollLeft + container.clientWidth) {
+      container.scrollTo({ left: elRight + pad - container.clientWidth, behavior: 'smooth' })
+    } else if (elLeft - pad < container.scrollLeft) {
+      container.scrollTo({ left: Math.max(0, elLeft - pad), behavior: 'smooth' })
+    }
+  }, [currentPhase, status])
 
   return (
-    <div className="flex items-center gap-3 px-6 py-2.5 border-b border-white/[0.05] shrink-0">
+    <div
+      ref={containerRef}
+      className="flex items-center gap-3 px-6 py-2.5 border-b border-white/[0.05] shrink-0 overflow-x-auto"
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+    >
       {phases.map((phase, i) => {
         const isCompleted = allDone || (currentPhase && PHASE_ORDER.indexOf(currentPhase) > PHASE_ORDER.indexOf(phase))
         const isActive = phase === currentPhase
         return (
-          <div key={phase} className="flex items-center gap-3">
-            {i > 0 && <div className="w-5 h-px bg-white/[0.07]" />}
+          <div
+            key={phase}
+            ref={isActive ? activeRef : null}
+            className="flex items-center gap-3 shrink-0"
+          >
+            {i > 0 && <div className="w-5 h-px bg-white/[0.07] shrink-0" />}
             <span
-              className="text-[11px] capitalize tracking-wide transition-colors flex items-center gap-1"
+              className="text-[11px] capitalize tracking-wide transition-colors flex items-center gap-1 whitespace-nowrap"
               style={{
                 color: isActive ? '#B873AE' : isCompleted ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.08)',
                 transitionDuration: '500ms',
