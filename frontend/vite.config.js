@@ -3,6 +3,17 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          p5: ['p5'],
+          markdown: ['react-markdown'],
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       '/api': {
