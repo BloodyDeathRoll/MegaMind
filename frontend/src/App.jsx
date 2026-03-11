@@ -228,7 +228,7 @@ function MainInputArea({
           }}
           title="Settings"
         >
-          <IconCog size={24} />
+          <IconCog size={16} />
         </button>
       </div>
 
