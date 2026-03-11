@@ -92,8 +92,7 @@ async def run_debate(
     # --- Phase 4: Synthesis (single agent) ---
     synthesis_context = format_history(history)
     synthesis_messages = [
-        {"role": "user", "content": user_prompt},
-        {"role": "assistant", "content": synthesis_context},
+        {"role": "user", "content": f"Original question: {user_prompt}\n\nDebate transcript:\n{synthesis_context}\n\nNow write your synthesis."},
     ]
     synthesis_result = await synthesis_agent.stream_send(
         SYNTHESIS_PROMPT, synthesis_messages, queue, "synthesis"
