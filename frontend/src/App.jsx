@@ -525,6 +525,12 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
   )
 }
 
+function gtagPage(path, title) {
+  if (typeof window.gtag === 'function') {
+    window.gtag('event', 'page_view', { page_path: path, page_title: title })
+  }
+}
+
 export default function App() {
   // Screen: 'intro' | 'apis' | 'main'
   const [appScreen, setAppScreen] = useState('intro')
@@ -574,12 +580,14 @@ export default function App() {
       .map(a => a.id)
     setActiveIds(freeIds)
     setAppScreen('main')
+    gtagPage('/main', 'Think Tank')
   }
 
   // Intro → API path: go to APIs screen
   function handleSupplyAPIs() {
     setApisReturnScreen('intro')
     setAppScreen('apis')
+    gtagPage('/apis', 'Add APIs')
   }
 
   // APIs → save keys and go to main
@@ -588,6 +596,7 @@ export default function App() {
     try { localStorage.setItem('megamind_api_keys', JSON.stringify(keys)) } catch {}
     setActiveIds(enabledIds)
     setAppScreen('main')
+    gtagPage('/main', 'Think Tank')
   }
 
   function handleStart(p, selectedRounds, synthesisAgentId) {
