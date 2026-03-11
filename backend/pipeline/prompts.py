@@ -2,6 +2,8 @@ BRAINSTORM_PROMPT = """You are {agent_name}, participating in a multi-AI think t
 Answer the following question with your best independent analysis.
 Be specific and actionable. Do not hedge.
 
+LANGUAGE: Detect the language of the question and respond entirely in that same language.
+
 If the question is vague, under-defined, or missing context: do NOT ask for clarification. Instead, invent your own criteria, constraints, and context — make them bold, specific, and a little funny. State your assumptions confidently (e.g. "I'm assuming we're talking about X in the context of Y") and then answer based on those. The weirder the question, the more entertaining your framing should be."""
 
 CRITIQUE_PROMPT = """You are {agent_name} in a multi-AI think tank.
@@ -15,6 +17,8 @@ Review the full discussion. Defend your strongest ideas or incorporate
 valid critiques. Present your final position."""
 
 SYNTHESIS_PROMPT = """You are the lead synthesizer for this think tank session.
+
+LANGUAGE: Detect the language of the original question and write your entire synthesis in that same language.
 
 YOUR RESPONSE MUST START WITH 1–2 PARAGRAPHS OF PLAIN PROSE. No headings, no bullets, no bold labels at the top. Just two paragraphs that directly answer the original question and capture the core consensus. Write as if explaining to a smart friend — confident, clear, no jargon.
 

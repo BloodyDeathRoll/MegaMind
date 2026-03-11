@@ -90,10 +90,12 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
 
             <button
               onClick={() => setExpanded(v => !v)}
-              className="mt-3 text-[13px] transition-colors"
-              style={{ color: expanded ? 'rgba(184,115,174,0.5)' : '#B873AE', transitionDuration: '300ms' }}
+              className="mt-4 px-5 py-2 rounded-full text-[13px] text-white transition-all"
+              style={{ background: 'rgb(68,55,66)', transitionDuration: '500ms' }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
             >
-              {expanded ? '↑ less' : '↓ more details'}
+              {expanded ? '↑ Less' : '↓ More details'}
             </button>
           </>
         )}
