@@ -117,7 +117,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
       {/* Title — mobile not-collapsed: absolute overlay on animation; mobile collapsed: in-flow row; desktop: absolute overlay always */}
       <div className={`pointer-events-none animate-fadein md:absolute md:inset-0 md:flex-col md:items-start md:justify-center md:px-12 md:py-0 ${collapsed ? 'relative flex flex-row items-center justify-between px-6 py-3' : 'absolute inset-x-0 bottom-0 flex flex-col items-start px-6 pb-5'}`}>
         <h1
-          className={`font-bold text-white tracking-tight ${onTitleClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+          className={`font-bold text-white tracking-tight ${onTitleClick ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
           style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap', transitionDuration: '300ms' }}
           onClick={onTitleClick}
         >
@@ -488,7 +488,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Menu bar */}
       <div
-        className="flex items-center justify-between px-6 shrink-0"
+        className="relative flex items-center justify-center px-6 shrink-0"
         style={{ height: '52px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
       >
         <div className="flex items-center gap-1">
@@ -504,7 +504,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         </div>
         <button
           onClick={onReset}
-          className="hidden md:block px-5 py-2 rounded-full text-[13px] text-white transition-all"
+          className="absolute right-6 hidden md:block px-5 py-2 rounded-full text-[13px] text-white transition-all"
           style={{ background: '#B873AE', transitionDuration: '500ms' }}
           onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
@@ -659,6 +659,7 @@ export default function App() {
   // Intro → API path: go to APIs screen
   function handleSupplyAPIs() {
     setApisReturnScreen('intro')
+    setAnimationCollapsed(true)
     setAppScreen('apis')
     gtagPage('/apis', 'Add APIs')
   }
@@ -668,6 +669,7 @@ export default function App() {
     setApiKeys(keys)
     try { localStorage.setItem('megamind_api_keys', JSON.stringify(keys)) } catch {}
     setActiveIds(enabledIds)
+    setAnimationCollapsed(false)
     setAppScreen('main')
     gtagPage('/main', 'Think Tank')
   }
@@ -693,6 +695,7 @@ export default function App() {
   function handleReset() {
     reset()
     setPrompt('')
+    setAnimationCollapsed(false)
   }
 
   function handleContinue(followUpText) {
