@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 
 const mdComponents = {
@@ -12,9 +13,24 @@ const mdComponents = {
   h3:     ({ children }) => <p className="font-semibold text-[#B873AE]/80 text-[16px] uppercase tracking-wide mt-5 mb-2">{children}</p>,
 }
 
+function splitSynthesis(text) {
+  if (!text) return { preview: '', rest: '' }
+  // Split on double newlines, keep first 2 non-empty blocks as preview
+  const blocks = text.split(/\n\n+/)
+  const nonEmpty = blocks.filter(b => b.trim().length > 0)
+  if (nonEmpty.length <= 2) return { preview: text, rest: '' }
+  const preview = nonEmpty.slice(0, 2).join('\n\n')
+  const rest = nonEmpty.slice(2).join('\n\n')
+  return { preview, rest }
+}
+
 export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, status, currentPhase }) {
+  const [expanded, setExpanded] = useState(false)
   const isSynthesizing = currentPhase === 'synthesis'
   if (!synthesis && !isSynthesizing) return null
+
+  const { preview, rest } = splitSynthesis(synthesis)
+  const hasMore = rest.length > 0 && status === 'done'
 
   return (
     <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#1a181b' }}>
@@ -50,8 +66,37 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
       {/* Content */}
       <div className="streaming-text px-5 py-5 text-[18px] leading-[1.75]" style={{ color: 'rgba(255,255,255,0.82)' }}>
         <ReactMarkdown components={mdComponents}>
-          {synthesis}
+          {preview}
         </ReactMarkdown>
+
+        {/* Expandable rest */}
+        {hasMore && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateRows: expanded ? '1fr' : '0fr',
+                transition: 'grid-template-rows 400ms ease',
+              }}
+            >
+              <div style={{ overflow: 'hidden' }}>
+                <div className="pt-2">
+                  <ReactMarkdown components={mdComponents}>
+                    {rest}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setExpanded(v => !v)}
+              className="mt-3 text-[13px] transition-colors"
+              style={{ color: expanded ? 'rgba(184,115,174,0.5)' : '#B873AE', transitionDuration: '300ms' }}
+            >
+              {expanded ? '↑ less' : '↓ more details'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
