@@ -570,7 +570,7 @@ export default function App() {
   // Intro → free tier path: enable free agents only, go to main
   function handleFreeTier() {
     const freeIds = availableAgents
-      .filter(a => a.tier === 'free' && a.available !== false)
+      .filter(a => a.tier === 'free')
       .map(a => a.id)
     setActiveIds(freeIds)
     setAppScreen('main')
