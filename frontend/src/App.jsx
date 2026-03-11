@@ -114,8 +114,8 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
         <ResonantLogo className="absolute inset-0 w-full h-full" />
       </div>
 
-      {/* Title — mobile: slim header bar when collapsed; desktop: overlaid on animation */}
-      <div className={`relative pointer-events-none animate-fadein md:flex-col md:items-start md:justify-center md:absolute md:inset-0 md:px-12 px-6 py-3 md:py-0 ${collapsed ? 'flex flex-row items-center justify-between' : 'flex flex-col items-start justify-end'}`}>
+      {/* Title — mobile not-collapsed: absolute overlay on animation; mobile collapsed: in-flow row; desktop: absolute overlay always */}
+      <div className={`pointer-events-none animate-fadein md:absolute md:inset-0 md:flex-col md:items-start md:justify-center md:px-12 md:py-0 ${collapsed ? 'relative flex flex-row items-center justify-between px-6 py-3' : 'absolute inset-x-0 bottom-0 flex flex-col items-start px-6 pb-5'}`}>
         <h1
           className="font-bold text-white tracking-tight"
           style={{ fontSize: 'clamp(26px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap' }}
@@ -140,7 +140,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset }) {
            style={{ fontSize: 'clamp(13px, 2.2vw, 40px)', opacity: 0.9 }}>
           AI think tank
         </p>
-        <p className={`text-white font-light ${collapsed ? 'hidden md:block' : 'mt-0.5 mb-4 md:mb-0'}`}
+        <p className={`text-white font-light ${collapsed ? 'hidden md:block' : 'mt-0.5'}`}
            style={{ fontSize: 'clamp(10px, 1.3vw, 20px)', opacity: 0.5 }}>
           Multi model debate
         </p>
