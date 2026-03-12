@@ -3,6 +3,7 @@ import { useSSE } from './hooks/useSSE'
 import DebateView from './components/DebateView'
 import SynthesisPanel from './components/SynthesisPanel'
 import ResonantLogo from './components/ResonantLogo'
+import MegaMindLogo from './components/MegaMindLogo'
 import LLMButton from './components/LLMButton'
 import { AgentIcon, IconCog, IconCheck } from './components/LLMIcons'
 import IntroScreen from './screens/IntroScreen'
@@ -141,13 +142,11 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
 
       {/* Title — mobile not-collapsed: absolute overlay on animation; mobile collapsed: in-flow row; desktop: absolute overlay always */}
       <div className={`pointer-events-none animate-fadein md:absolute md:inset-0 md:flex-col md:items-start md:justify-center md:px-12 md:py-0 ${collapsed ? 'relative flex flex-row items-center justify-between px-6 py-3' : 'absolute inset-x-0 bottom-0 flex flex-col items-start px-6 pb-5'}`}>
-        <h1
-          className={`font-bold text-white tracking-tight ${onTitleClick ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-          style={{ fontSize: 'clamp(28px, 6vw, 92px)', lineHeight: 1.2, whiteSpace: 'nowrap', transitionDuration: '300ms' }}
+        <MegaMindLogo
+          className={onTitleClick ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : ''}
+          style={{ height: 'clamp(16px, 3.2vw, 50px)', width: 'auto', transitionDuration: '300ms' }}
           onClick={onTitleClick}
-        >
-          MegaMind
-        </h1>
+        />
 
         {/* New debate — mobile only, next to title when in debate */}
         {collapsed && hasDebate && (
