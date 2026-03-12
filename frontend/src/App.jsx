@@ -143,7 +143,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
       <div className={`pointer-events-none animate-fadein md:absolute md:inset-0 md:flex-col md:items-start md:justify-center md:px-12 md:py-0 ${collapsed ? 'relative flex flex-row items-center justify-between px-6 py-3' : 'absolute inset-x-0 bottom-0 flex flex-col items-start px-6 pb-5'}`}>
         <h1
           className={`font-bold text-white tracking-tight ${onTitleClick ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-          style={{ fontSize: 'clamp(28px, 6vw, 92px)', lineHeight: 1, whiteSpace: 'nowrap', transitionDuration: '300ms' }}
+          style={{ fontSize: 'clamp(28px, 6vw, 92px)', lineHeight: 1.2, whiteSpace: 'nowrap', transitionDuration: '300ms' }}
           onClick={onTitleClick}
         >
           MegaMind
@@ -166,7 +166,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
            style={{ fontSize: 'clamp(21px, 2.24vw, 42px)', opacity: 0.9 }}>
           AI think tank
         </p>
-        <p className={`text-white font-light ${collapsed ? 'hidden md:block' : 'mt-0.7'}`}
+        <p className={`text-white font-regular ${collapsed ? 'hidden md:block' : 'mt-0.7'}`}
            style={{ fontSize: 'clamp(13px, 1.6vw, 20px)', opacity: 0.7 }}>
           Combine AI models - AI debate themselves and return best fit
         </p>
