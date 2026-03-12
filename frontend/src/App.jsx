@@ -133,7 +133,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
     <div className="shrink-0 overflow-hidden w-full md:w-1/2 relative flex flex-col md:block">
       {/* Animation — mobile: transitions height; desktop: fills panel via absolute inset */}
       <div
-        className="relative overflow-hidden transition-all duration-500 md:absolute md:inset-0 md:!h-auto"
+        className="relative overflow-hidden transition-all duration-500 md:absolute md:inset-0 md:!h-auto md:!opacity-100"
         style={collapsed ? { height: 0, opacity: 0 } : { height: 'min(45vw, 50vh)' }}
       >
         <ResonantLogo className="absolute inset-0 w-full h-full" />
