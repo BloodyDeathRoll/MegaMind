@@ -22,7 +22,6 @@ function Toggle({ enabled, onToggle }) {
         width: '32px',
         height: '16px',
         background: enabled ? '#B873AE' : '#18161A',
-        border: enabled ? '1px solid rgba(184,115,174,0.6)' : '1px solid rgba(255,255,255,0.08)',
         transitionDuration: '500ms',
       }}
       title={enabled ? 'Disable' : 'Enable'}

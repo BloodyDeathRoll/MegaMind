@@ -117,7 +117,7 @@ export default function ConnectModal({ agentId, currentKey, onSave, onDisconnect
             {currentKey && (
               <button
                 onClick={handleDisconnect}
-                className="px-4 py-2.5 rounded-xl text-[13px] border border-white/[0.07] text-white/35 hover:text-red-400 hover:border-red-800/40 transition-all duration-300"
+                className="px-4 py-2.5 rounded-xl text-[13px] text-white/35 hover:text-red-400 transition-all duration-300"
               >
                 Disconnect
               </button>

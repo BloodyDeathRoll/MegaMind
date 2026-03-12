@@ -69,9 +69,8 @@ export default function InputPanel({
             return (
               <span
                 key={a.id}
-                className="text-xs px-3 py-1 rounded-full border transition-all duration-300"
+                className="text-xs px-3 py-1 rounded-full transition-all duration-300"
                 style={{
-                  borderColor: on ? 'rgba(184,115,174,0.4)' : 'rgba(255,255,255,0.06)',
                   color: on ? 'rgba(184,115,174,0.9)' : 'rgba(255,255,255,0.2)',
                 }}
               >
@@ -95,8 +94,8 @@ export default function InputPanel({
           <button
             type="button"
             onClick={onReset}
-            className="px-5 py-[7px] rounded-full border text-[13px] transition-all duration-300"
-            style={{ borderColor: 'rgba(185,60,60,0.4)', color: 'rgba(220,100,100,0.8)' }}
+            className="px-5 py-[7px] rounded-full text-[13px] transition-all duration-300"
+            style={{ color: 'rgba(220,100,100,0.8)' }}
           >
             Stop
           </button>
@@ -111,7 +110,6 @@ export default function InputPanel({
             className="px-6 py-[7px] rounded-full text-[13px] font-medium transition-all duration-300"
             style={{
               background: 'rgba(184,115,174,0.15)',
-              border: '1px solid rgba(184,115,174,0.4)',
               color: '#B873AE',
               boxShadow: '0 0 16px rgba(184,115,174,0.12)',
             }}

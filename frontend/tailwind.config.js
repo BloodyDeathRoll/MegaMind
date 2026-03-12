@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Merriweather', 'serif'],
+        sans: ['Source Sans 3', 'sans-serif'],
       },
       colors: {
         ink: '#171518',
