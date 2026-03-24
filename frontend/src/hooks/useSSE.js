@@ -115,6 +115,10 @@ export function useSSE() {
           ...s,
           totalTokens: s.totalTokens + (input_tokens + output_tokens),
           totalCostUSD: s.totalCostUSD + cost_usd,
+          agentsDone: {
+            ...s.agentsDone,
+            [phase]: [...(s.agentsDone[phase] ?? []), agent_id],
+          },
         }))
         break
       }

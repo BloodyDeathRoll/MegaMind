@@ -487,12 +487,87 @@ function MainInputArea({
   )
 }
 
+const PHASE_VERBS = {
+  brainstorm: 'thinking independently',
+  critique:   'reviewing each other',
+  rebuttal:   'refining positions',
+}
+
+function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
+  const phases = ['brainstorm']
+  if (rounds >= 3) phases.push('critique')
+  if (rounds >= 4) phases.push('rebuttal')
+  phases.push('synthesis')
+
+  const phaseIndex = Math.max(0, phases.indexOf(currentPhase))
+  const progressPct = (phaseIndex / phases.length) * 100
+  const doneIds = agentsDone[currentPhase] ?? []
+  const verb = PHASE_VERBS[currentPhase] ?? 'working'
+
+  return (
+    <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#1a181b' }}>
+      <div className="flex items-center justify-between px-5 py-3" style={{ background: 'rgba(184,115,174,0.07)' }}>
+        <span className="text-[13px] font-semibold" style={{ color: '#B873AE' }}>Synthesis</span>
+        <span className="text-[11px] capitalize" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          {currentPhase}…
+        </span>
+      </div>
+
+      <div className="px-5 py-5 space-y-4">
+        {/* Progress bar */}
+        <div className="h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${progressPct}%`, background: '#B873AE', transitionDuration: '800ms' }}
+          />
+        </div>
+
+        {/* Per-agent labels */}
+        <div className="space-y-2">
+          {activeAgents.map(agent => {
+            const done = doneIds.includes(agent.id)
+            return (
+              <div key={agent.id} className="flex items-center gap-2 text-[12px]">
+                {done ? (
+                  <IconCheck size={10} />
+                ) : (
+                  <span className="flex gap-0.5 items-end h-3 shrink-0">
+                    {[0, 1, 2].map(i => (
+                      <span
+                        key={i}
+                        className="w-[2px] rounded-full animate-pulse_dot"
+                        style={{ background: '#B873AE', height: `${6 + i * 2}px`, animationDelay: `${i * 0.2}s` }}
+                      />
+                    ))}
+                  </span>
+                )}
+                <span style={{ color: done ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.65)' }}>
+                  {agent.name}
+                </span>
+                <span style={{ color: done ? 'rgba(255,255,255,0.15)' : 'rgba(184,115,174,0.65)' }}>
+                  {done ? 'done' : verb}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Active debate right panel
 function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinue, rtl = false }) {
   const [followUp, setFollowUp] = useState('')
+  const [debateOpen, setDebateOpen] = useState(false)
   const followUpRef = useRef(null)
   const activeAgents = agents.filter(a => activeIds.includes(a.id))
   const isDone = state.status === 'done'
+  const isError = state.status === 'error'
+  const showProgress = !isError
+    && state.currentPhase
+    && state.currentPhase !== 'synthesis'
+    && !state.synthesis
 
   // Auto-grow follow-up textarea
   useEffect(() => {
@@ -501,6 +576,11 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
     el.style.height = 'auto'
     el.style.height = el.scrollHeight + 'px'
   }, [followUp])
+
+  // Open debate section once it has content
+  useEffect(() => {
+    if (Object.keys(state.phases).length > 0 && !debateOpen) setDebateOpen(true)
+  }, [state.phases])
 
   function handleContinue() {
     if (!followUp.trim()) return
@@ -544,15 +624,16 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
       {/* Single scrollable content area */}
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 pt-8 pb-4 space-y-6 max-w-[720px] mx-auto">
-          {activeAgents.length > 0 && (
-            <DebateView
-              agents={activeAgents}
-              phases={state.phases}
+
+          {/* Section 1: Synthesis / Progress */}
+          {showProgress && (
+            <DebateProgress
               currentPhase={state.currentPhase}
-              rtl={rtl}
+              activeAgents={activeAgents}
+              agentsDone={state.agentsDone}
+              rounds={rounds}
             />
           )}
-
           <SynthesisPanel
             synthesis={state.synthesis}
             totalTokens={state.totalTokens}
@@ -563,7 +644,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
           />
 
           {/* Error banner */}
-          {(state.status === 'error' || state.status === 'done') && state.error && (
+          {(isError || isDone) && state.error && (
             <div
               className="rounded-2xl flex items-center justify-between px-5 py-3 animate-fadein"
               style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)' }}
@@ -581,7 +662,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
             </div>
           )}
 
-          {/* Follow-up input — appears after synthesis is done */}
+          {/* Follow-up input */}
           {isDone && (
             <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#100E10' }}>
               <textarea
@@ -612,7 +693,32 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
             </div>
           )}
 
-          {/* Bottom padding */}
+          {/* Section 2: Debate — collapsible */}
+          {Object.keys(state.phases).length > 0 && (
+            <div>
+              <button
+                onClick={() => setDebateOpen(v => !v)}
+                className="flex items-center gap-2 text-[12px] mb-3 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.3)', transitionDuration: '300ms' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
+              >
+                <span>{debateOpen ? '↑' : '↓'}</span>
+                <span>{debateOpen ? 'Hide debate' : 'Show debate'}</span>
+              </button>
+              <div style={{ display: 'grid', gridTemplateRows: debateOpen ? '1fr' : '0fr', transition: 'grid-template-rows 500ms ease' }}>
+                <div style={{ overflow: 'hidden' }}>
+                  <DebateView
+                    agents={activeAgents}
+                    phases={state.phases}
+                    currentPhase={state.currentPhase}
+                    rtl={rtl}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
           <div style={{ height: '24px' }} />
         </div>
       </div>

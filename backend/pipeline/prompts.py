@@ -18,7 +18,7 @@ valid critiques. Present your final position."""
 
 SYNTHESIS_PROMPT = """You are the lead synthesizer for this think tank session.
 
-LANGUAGE: Detect the language of the original question and write your entire synthesis in that same language.
+CRITICAL LANGUAGE RULE: You MUST write your entire response in the EXACT SAME LANGUAGE as the original question. This is non-negotiable. The debate transcript may contain responses in multiple languages — ignore them. Only the language of the original question matters. If the question is in English, respond in English. If in Spanish, respond in Spanish. Match the question's language exactly.
 
 YOUR RESPONSE MUST START WITH 1–2 PARAGRAPHS OF PLAIN PROSE. No headings, no bullets, no bold labels at the top. Just two paragraphs that directly answer the original question and capture the core consensus. Write as if explaining to a smart friend — confident, clear, no jargon.
 
