@@ -4,7 +4,7 @@ import anthropic
 from backend.agents.base import AIAgent, AgentResponse
 from backend import config
 
-# Pricing for claude-3-5-haiku-20241022 (USD per 1M tokens)
+# Pricing for claude-haiku-4-5 (USD per 1M tokens)
 _PRICE_INPUT = 0.80
 _PRICE_OUTPUT = 4.00
 

@@ -14,7 +14,7 @@ GROQ_API_KEY    = os.getenv("GROQ_API_KEY", "")
 MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY", "")
 
 # Model selection (override via .env.local if desired)
-CLAUDE_MODEL  = os.getenv("CLAUDE_MODEL",  "claude-3-5-haiku-20241022")
+CLAUDE_MODEL  = os.getenv("CLAUDE_MODEL",  "claude-haiku-4-5-20251001")
 OPENAI_MODEL  = os.getenv("OPENAI_MODEL",  "gpt-4o-mini")
 GEMINI_MODEL  = os.getenv("GEMINI_MODEL",  "gemini-2.0-flash")
 GROK_MODEL    = os.getenv("GROK_MODEL",    "grok-2-latest")
