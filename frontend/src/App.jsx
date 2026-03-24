@@ -624,9 +624,48 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
       {/* Two-column on desktop, single column on mobile */}
       <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
 
-        {/* Left column: Synthesis */}
-        <div className="md:w-1/2 flex-1 md:flex-none overflow-y-auto" style={{ borderRight: '1px solid rgba(255,255,255,0.04)' }}>
-          <div className="px-4 pt-8 pb-4 space-y-6 max-w-[600px] mx-auto">
+        {/* Left column: Debate */}
+        <div className="md:w-1/2 md:flex-none md:overflow-y-auto" style={{ borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          {/* Desktop: always visible */}
+          <div className="hidden md:block px-4 pt-8 pb-8">
+            <DebateView
+              agents={activeAgents}
+              phases={state.phases}
+              currentPhase={state.currentPhase}
+              rtl={rtl}
+            />
+          </div>
+
+          {/* Mobile: collapsible */}
+          {Object.keys(state.phases).length > 0 && (
+            <div className="md:hidden px-4 pt-2 pb-4">
+              <button
+                onClick={() => setDebateOpen(v => !v)}
+                className="flex items-center gap-2 text-[12px] mb-3 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.3)', transitionDuration: '300ms' }}
+                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
+              >
+                <span>{debateOpen ? '↑' : '↓'}</span>
+                <span>{debateOpen ? 'Hide debate' : 'Show debate'}</span>
+              </button>
+              <div style={{ display: 'grid', gridTemplateRows: debateOpen ? '1fr' : '0fr', transition: 'grid-template-rows 500ms ease' }}>
+                <div style={{ overflow: 'hidden' }}>
+                  <DebateView
+                    agents={activeAgents}
+                    phases={state.phases}
+                    currentPhase={state.currentPhase}
+                    rtl={rtl}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right column: Synthesis */}
+        <div className="md:w-1/2 flex-1 md:flex-none overflow-y-auto">
+          <div className="px-4 pt-8 pb-4 space-y-6">
             {showProgress && (
               <DebateProgress
                 currentPhase={state.currentPhase}
@@ -695,45 +734,6 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
             )}
             <div style={{ height: '24px' }} />
           </div>
-        </div>
-
-        {/* Right column: Debate */}
-        <div className="md:w-1/2 md:flex-none md:overflow-y-auto">
-          {/* Desktop: always visible */}
-          <div className="hidden md:block px-4 pt-8 pb-8">
-            <DebateView
-              agents={activeAgents}
-              phases={state.phases}
-              currentPhase={state.currentPhase}
-              rtl={rtl}
-            />
-          </div>
-
-          {/* Mobile: collapsible */}
-          {Object.keys(state.phases).length > 0 && (
-            <div className="md:hidden px-4 pt-2 pb-4">
-              <button
-                onClick={() => setDebateOpen(v => !v)}
-                className="flex items-center gap-2 text-[12px] mb-3 transition-colors"
-                style={{ color: 'rgba(255,255,255,0.3)', transitionDuration: '300ms' }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.3)' }}
-              >
-                <span>{debateOpen ? '↑' : '↓'}</span>
-                <span>{debateOpen ? 'Hide debate' : 'Show debate'}</span>
-              </button>
-              <div style={{ display: 'grid', gridTemplateRows: debateOpen ? '1fr' : '0fr', transition: 'grid-template-rows 500ms ease' }}>
-                <div style={{ overflow: 'hidden' }}>
-                  <DebateView
-                    agents={activeAgents}
-                    phases={state.phases}
-                    currentPhase={state.currentPhase}
-                    rtl={rtl}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
       </div>
