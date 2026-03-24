@@ -11,6 +11,7 @@ function initialState() {
     totalTokens: 0,
     totalCostUSD: 0,
     agentsDone: {},        // { brainstorm: Set of agent_ids }
+    agentErrors: [],
     error: null,
   }
 }
@@ -132,16 +133,28 @@ export function useSSE() {
           currentPhase: null,
           totalTokens: event.total_tokens ?? s.totalTokens,
           totalCostUSD: event.total_cost_usd ?? s.totalCostUSD,
+          error: s.agentErrors?.length
+            ? s.agentErrors.join(' | ')
+            : null,
         }))
         break
       }
 
-      case 'fatal_error':
-      case 'error': {
+      case 'fatal_error': {
         setState(s => ({
           ...s,
           status: 'error',
           error: event.message ?? 'Unknown error',
+        }))
+        break
+      }
+
+      case 'error': {
+        // Non-fatal: individual agent failed, debate continues.
+        // Collect into agentErrors; surface after done.
+        setState(s => ({
+          ...s,
+          agentErrors: [...(s.agentErrors ?? []), event.message ?? 'Unknown error'],
         }))
         break
       }

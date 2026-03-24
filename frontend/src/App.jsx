@@ -563,7 +563,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
           />
 
           {/* Error banner */}
-          {state.status === 'error' && state.error && (
+          {(state.status === 'error' || state.status === 'done') && state.error && (
             <div
               className="rounded-2xl flex items-center justify-between px-5 py-3 animate-fadein"
               style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)' }}
@@ -775,7 +775,7 @@ export default function App() {
             onToggleSettings={() => setShowSettings(v => !v)}
             onEditAPIs={() => { setApisReturnScreen('main'); setAppScreen('apis') }}
             isRunning={false}
-            error={state.status === 'error' ? state.error : null}
+            error={(state.status === 'error' || state.status === 'done') ? state.error : null}
             onClearError={reset}
           />
         )}
