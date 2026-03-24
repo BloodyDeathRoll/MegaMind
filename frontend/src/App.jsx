@@ -557,7 +557,7 @@ function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
 }
 
 // Active debate right panel
-function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinue, rtl = false }) {
+function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinue, rtl = false, prompt = '' }) {
   const [followUp, setFollowUp] = useState('')
   const [debateOpen, setDebateOpen] = useState(false)
   const followUpRef = useRef(null)
@@ -666,6 +666,15 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         {/* Right column: Synthesis */}
         <div className="md:w-1/2 flex-1 md:flex-none overflow-y-auto">
           <div className="px-4 pt-8 pb-4 space-y-6">
+            {/* Show prompt while waiting for synthesis */}
+            {prompt && !state.synthesis && (
+              <p
+                className="text-[20px] leading-snug font-light animate-fadein"
+                style={{ color: 'rgba(255,255,255,0.45)', direction: rtl ? 'rtl' : 'ltr' }}
+              >
+                {prompt}
+              </p>
+            )}
             {showProgress && (
               <DebateProgress
                 currentPhase={state.currentPhase}
@@ -911,6 +920,7 @@ export default function App() {
             onReset={handleReset}
             onContinue={handleContinue}
             rtl={isRTL(debatePrompt)}
+            prompt={debatePrompt}
           />
         )}
       </div>
