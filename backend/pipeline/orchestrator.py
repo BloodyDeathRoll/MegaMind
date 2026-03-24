@@ -69,8 +69,7 @@ async def run_debate(
     if rounds >= 3:
         critique_context = format_responses(brainstorm_responses)
         critique_messages = [
-            {"role": "user", "content": user_prompt},
-            {"role": "assistant", "content": critique_context},
+            {"role": "user", "content": f"{user_prompt}\n\nHere are the initial proposals from all participants:\n\n{critique_context}"},
         ]
         critique_responses = await _run_phase(
             agents, CRITIQUE_PROMPT, critique_messages, "critique", queue
@@ -81,8 +80,7 @@ async def run_debate(
     if rounds >= 4:
         full_context = format_history(history)
         rebuttal_messages = [
-            {"role": "user", "content": user_prompt},
-            {"role": "assistant", "content": full_context},
+            {"role": "user", "content": f"{user_prompt}\n\nHere is the full debate so far:\n\n{full_context}"},
         ]
         rebuttal_responses = await _run_phase(
             agents, REBUTTAL_PROMPT, rebuttal_messages, "rebuttal", queue
