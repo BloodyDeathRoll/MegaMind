@@ -131,7 +131,7 @@ function PhaseBar({ currentPhase, rounds, status }) {
 // Shared left panel: animation + branding
 function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick }) {
   return (
-    <div className="shrink-0 overflow-hidden w-full md:w-1/2 relative flex flex-col md:block">
+    <div className={`shrink-0 overflow-hidden w-full ${hasDebate ? 'md:w-1/3' : 'md:w-1/2'} relative flex flex-col md:block`} style={{ transition: 'width 500ms ease' }}>
       {/* Animation — mobile: transitions height; desktop: fills panel via absolute inset */}
       <div
         className="relative overflow-hidden transition-all duration-500 md:absolute md:inset-0 md:!h-auto md:!opacity-100"
@@ -590,7 +590,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* Menu bar */}
+      {/* Menu bar — full width */}
       <div
         className="relative flex items-center justify-center px-6 shrink-0"
         style={{ height: '52px', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
@@ -621,81 +621,97 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         <PhaseBar currentPhase={state.currentPhase} rounds={rounds} status={state.status} />
       )}
 
-      {/* Single scrollable content area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 pt-8 pb-4 space-y-6 max-w-[720px] mx-auto">
+      {/* Two-column on desktop, single column on mobile */}
+      <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
 
-          {/* Section 1: Synthesis / Progress */}
-          {showProgress && (
-            <DebateProgress
-              currentPhase={state.currentPhase}
-              activeAgents={activeAgents}
-              agentsDone={state.agentsDone}
-              rounds={rounds}
-            />
-          )}
-          <SynthesisPanel
-            synthesis={state.synthesis}
-            totalTokens={state.totalTokens}
-            totalCostUSD={state.totalCostUSD}
-            status={state.status}
-            currentPhase={state.currentPhase}
-            rtl={rtl}
-          />
-
-          {/* Error banner */}
-          {(isError || isDone) && state.error && (
-            <div
-              className="rounded-2xl flex items-center justify-between px-5 py-3 animate-fadein"
-              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)' }}
-            >
-              <span className="text-[13px]" style={{ color: 'rgba(248,113,113,0.9)' }}>{state.error}</span>
-              <button
-                onClick={onReset}
-                className="text-[12px] ml-4 shrink-0 transition-colors"
-                style={{ color: 'rgba(255,255,255,0.35)', transitionDuration: '500ms' }}
-                onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
-                onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
-              >
-                Stop / Clear
-              </button>
-            </div>
-          )}
-
-          {/* Follow-up input */}
-          {isDone && (
-            <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#100E10' }}>
-              <textarea
-                ref={followUpRef}
-                className="w-full bg-transparent px-6 pt-5 pb-3 text-[16px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-hidden"
-                rows={1}
-                value={followUp}
-                onChange={e => setFollowUp(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleContinue() } }}
-                placeholder="Ask a follow-up..."
-                style={{ caretColor: '#B873AE' }}
+        {/* Left column: Synthesis */}
+        <div className="md:w-1/2 flex-1 md:flex-none overflow-y-auto" style={{ borderRight: '1px solid rgba(255,255,255,0.04)' }}>
+          <div className="px-4 pt-8 pb-4 space-y-6 max-w-[600px] mx-auto">
+            {showProgress && (
+              <DebateProgress
+                currentPhase={state.currentPhase}
+                activeAgents={activeAgents}
+                agentsDone={state.agentsDone}
+                rounds={rounds}
               />
-              <div style={{ display: 'grid', gridTemplateRows: followUp ? '1fr' : '0fr', transition: 'grid-template-rows 400ms ease' }}>
-                <div style={{ overflow: 'hidden' }}>
-                  <div className="flex items-center justify-end px-5 pt-3 pb-5">
-                    <button
-                      onClick={handleContinue}
-                      className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
-                      style={{ background: '#B873AE', transitionDuration: '500ms' }}
-                      onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
-                      onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
-                    >
-                      Think
-                    </button>
+            )}
+            <SynthesisPanel
+              synthesis={state.synthesis}
+              totalTokens={state.totalTokens}
+              totalCostUSD={state.totalCostUSD}
+              status={state.status}
+              currentPhase={state.currentPhase}
+              rtl={rtl}
+            />
+
+            {/* Error banner */}
+            {(isError || isDone) && state.error && (
+              <div
+                className="rounded-2xl flex items-center justify-between px-5 py-3 animate-fadein"
+                style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.15)' }}
+              >
+                <span className="text-[13px]" style={{ color: 'rgba(248,113,113,0.9)' }}>{state.error}</span>
+                <button
+                  onClick={onReset}
+                  className="text-[12px] ml-4 shrink-0 transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.35)', transitionDuration: '500ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
+                >
+                  Stop / Clear
+                </button>
+              </div>
+            )}
+
+            {/* Follow-up input */}
+            {isDone && (
+              <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#100E10' }}>
+                <textarea
+                  ref={followUpRef}
+                  className="w-full bg-transparent px-6 pt-5 pb-3 text-[16px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-hidden"
+                  rows={1}
+                  value={followUp}
+                  onChange={e => setFollowUp(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleContinue() } }}
+                  placeholder="Ask a follow-up..."
+                  style={{ caretColor: '#B873AE' }}
+                />
+                <div style={{ display: 'grid', gridTemplateRows: followUp ? '1fr' : '0fr', transition: 'grid-template-rows 400ms ease' }}>
+                  <div style={{ overflow: 'hidden' }}>
+                    <div className="flex items-center justify-end px-5 pt-3 pb-5">
+                      <button
+                        onClick={handleContinue}
+                        className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
+                        style={{ background: '#B873AE', transitionDuration: '500ms' }}
+                        onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
+                        onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+                      >
+                        Think
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+            <div style={{ height: '24px' }} />
+          </div>
+        </div>
 
-          {/* Section 2: Debate — collapsible */}
+        {/* Right column: Debate */}
+        <div className="md:w-1/2 md:flex-none md:overflow-y-auto">
+          {/* Desktop: always visible */}
+          <div className="hidden md:block px-4 pt-8 pb-8">
+            <DebateView
+              agents={activeAgents}
+              phases={state.phases}
+              currentPhase={state.currentPhase}
+              rtl={rtl}
+            />
+          </div>
+
+          {/* Mobile: collapsible */}
           {Object.keys(state.phases).length > 0 && (
-            <div>
+            <div className="md:hidden px-4 pt-2 pb-4">
               <button
                 onClick={() => setDebateOpen(v => !v)}
                 className="flex items-center gap-2 text-[12px] mb-3 transition-colors"
@@ -718,9 +734,8 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
               </div>
             </div>
           )}
-
-          <div style={{ height: '24px' }} />
         </div>
+
       </div>
     </div>
   )
