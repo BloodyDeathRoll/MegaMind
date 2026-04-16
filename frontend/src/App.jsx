@@ -267,7 +267,7 @@ function MainInputArea({
           >
             <textarea
               ref={textareaRef}
-              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-hidden"
+              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-y-auto"
               rows={1}
               value={prompt}
               onChange={e => {
@@ -277,7 +277,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything..."
-              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left' }}
+              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', maxHeight: '220px' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}
