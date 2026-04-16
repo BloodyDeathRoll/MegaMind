@@ -257,8 +257,9 @@ function MainInputArea({
         </button>
       </div>
 
-      {/* Centered input */}
-      <div className="flex-1 flex items-center justify-center px-10 py-6 min-h-0">
+      {/* Centered input — outer div scrolls so the CTA stays reachable on long prompts */}
+      <div className="flex-1 overflow-y-auto px-10">
+        <div className="min-h-full flex flex-col items-center justify-center py-6">
         <div className="w-full max-w-[520px] animate-fadein" style={{ animationDelay: '0.1s' }}>
           {/* Input card */}
           <div
@@ -267,7 +268,7 @@ function MainInputArea({
           >
             <textarea
               ref={textareaRef}
-              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-y-auto"
+              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-hidden"
               rows={1}
               value={prompt}
               onChange={e => {
@@ -277,7 +278,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything..."
-              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', maxHeight: '220px' }}
+              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}
@@ -412,6 +413,7 @@ function MainInputArea({
               </button>
             </div>
           )}
+        </div>
         </div>
       </div>
 
