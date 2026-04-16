@@ -201,13 +201,14 @@ function MainInputArea({
   // Only show agents that are active (connected)
   const connectedAgents = agents.filter(a => activeIds.includes(a.id))
 
-  // Auto-grow textarea — set height to 0 first so scrollHeight reflects full content
-  useEffect(() => {
-    const el = textareaRef.current
+  function growTextarea(el) {
     if (!el) return
     el.style.height = '0'
     el.style.height = el.scrollHeight + 'px'
-  }, [prompt])
+  }
+
+  // Grow for programmatic changes (suggestions, clear)
+  useEffect(() => { growTextarea(textareaRef.current) }, [prompt])
 
   function handleToggle(id) {
     const isActive = activeIds.includes(id)
@@ -268,9 +269,10 @@ function MainInputArea({
           >
             <textarea
               ref={textareaRef}
-              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light overflow-hidden"
+              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light"
               rows={1}
               value={prompt}
+              onInput={e => growTextarea(e.target)}
               onChange={e => {
                 onPromptChange(e.target.value)
                 if (e.target.value.length === 1 && showSettings) onToggleSettings()
@@ -278,7 +280,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything..."
-              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left' }}
+              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflow: 'hidden' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}
