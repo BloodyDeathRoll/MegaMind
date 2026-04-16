@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useLayoutEffect, useState, useCallback, useRef } from 'react'
 import { useSSE } from './hooks/useSSE'
 import DebateView from './components/DebateView'
 import SynthesisPanel from './components/SynthesisPanel'
@@ -201,6 +201,17 @@ function MainInputArea({
   // Only show agents that are active (connected)
   const connectedAgents = agents.filter(a => activeIds.includes(a.id))
 
+  // Auto-grow: runs synchronously before paint so there's no flash.
+  // 18px font × 1.625 leading = ~29px/line; 5 lines + padding ≈ 180px max.
+  const MAX_TEXTAREA_HEIGHT = 180
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = '1px'
+    const h = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT)
+    el.style.height = h + 'px'
+    el.style.overflowY = el.scrollHeight > MAX_TEXTAREA_HEIGHT ? 'auto' : 'hidden'
+  }, [prompt])
 
   function handleToggle(id) {
     const isActive = activeIds.includes(id)
@@ -262,7 +273,7 @@ function MainInputArea({
             <textarea
               ref={textareaRef}
               className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light"
-              rows={5}
+              rows={1}
               value={prompt}
               onChange={e => {
                 onPromptChange(e.target.value)
@@ -271,7 +282,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything..."
-              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflowY: 'auto' }}
+              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflowY: 'hidden' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}
