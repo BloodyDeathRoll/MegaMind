@@ -201,11 +201,11 @@ function MainInputArea({
   // Only show agents that are active (connected)
   const connectedAgents = agents.filter(a => activeIds.includes(a.id))
 
-  // Auto-grow textarea
+  // Auto-grow textarea — set height to 0 first so scrollHeight reflects full content
   useEffect(() => {
     const el = textareaRef.current
     if (!el) return
-    el.style.height = 'auto'
+    el.style.height = '0'
     el.style.height = el.scrollHeight + 'px'
   }, [prompt])
 
