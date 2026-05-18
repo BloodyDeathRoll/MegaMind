@@ -10,6 +10,7 @@ class OpenAICompatAgent(AIAgent):
 
     _client: openai_sdk.AsyncOpenAI
     _model: str
+    _stream_options: bool = True  # set False for providers that don't support it (e.g. Mistral)
 
     async def stream_send(
         self,
@@ -25,13 +26,10 @@ class OpenAICompatAgent(AIAgent):
         formatted = [{"role": "system", "content": system_prompt}] + messages
 
         try:
-            stream = await self._client.chat.completions.create(
-                model=self._model,
-                messages=formatted,
-                max_tokens=2048,
-                stream=True,
-                stream_options={"include_usage": True},
-            )
+            kwargs = dict(model=self._model, messages=formatted, max_tokens=2048, stream=True)
+            if self._stream_options:
+                kwargs["stream_options"] = {"include_usage": True}
+            stream = await self._client.chat.completions.create(**kwargs)
 
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:

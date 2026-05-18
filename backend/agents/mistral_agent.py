@@ -11,6 +11,7 @@ _PRICE_OUTPUT = 0.0
 class MistralAgent(OpenAICompatAgent):
     _price_input  = _PRICE_INPUT
     _price_output = _PRICE_OUTPUT
+    _stream_options = False  # Mistral rejects stream_options
 
     def __init__(self, api_key: str | None = None):
         self._client = openai_sdk.AsyncOpenAI(
