@@ -272,7 +272,7 @@ function MainInputArea({
           >
             <textarea
               ref={textareaRef}
-              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light"
+              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light placeholder:text-white/55"
               rows={1}
               value={prompt}
               onChange={e => {
@@ -281,7 +281,7 @@ function MainInputArea({
               }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
-              placeholder="Ask me anything..."
+              placeholder="Ask me anything profound"
               style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflowY: 'hidden' }}
             />
 
@@ -417,6 +417,11 @@ function MainInputArea({
               </button>
             </div>
           )}
+
+          {/* API hint */}
+          <p className="text-center mt-3 text-[12px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+            You can add APIs inside the settings
+          </p>
         </div>
         </div>
       </div>
@@ -435,14 +440,14 @@ function MainInputArea({
         {suggestions.map((s, i) => (
           <span key={s} className="flex items-center gap-3">
             {i > 0 && (
-              <span style={{ color: 'rgba(255,255,255,0.12)', fontSize: '11px' }}>|</span>
+              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>|</span>
             )}
             <button
               onClick={() => onPromptChange(s)}
-              className="text-[12px] whitespace-nowrap transition-colors"
-              style={{ color: 'rgba(255,255,255,0.25)', transitionDuration: '500ms' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.25)' }}
+              className="text-[13px] whitespace-nowrap transition-colors"
+              style={{ color: 'rgba(255,255,255,0.45)', transitionDuration: '500ms' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}
             >
               {s}
             </button>
@@ -763,8 +768,8 @@ function gtagPage(path, title) {
 }
 
 export default function App() {
-  // Screen: 'intro' | 'apis' | 'main'
-  const [appScreen, setAppScreen] = useState('intro')
+  // Screen: 'apis' | 'main'
+  const [appScreen, setAppScreen] = useState('main')
   const [animationCollapsed, setAnimationCollapsed] = useState(false)
 
   // Agent catalogue from backend (with tier + available flags)
@@ -775,15 +780,17 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('megamind_api_keys') || '{}') } catch { return {} }
   })
 
-  // Which agents are toggled on
-  const [activeIds, setActiveIds] = useState([])
+  // Which agents are toggled on — default to free tier
+  const [activeIds, setActiveIds] = useState(() =>
+    STATIC_AGENTS.filter(a => a.tier === 'free').map(a => a.id)
+  )
 
   // Debate settings
   const [rounds, setRounds] = useState(2)
   const [debatePrompt, setDebatePrompt] = useState('')
   const [prompt, setPrompt] = useState('')
   const [showSettings, setShowSettings] = useState(false)
-  const [apisReturnScreen, setApisReturnScreen] = useState('intro')
+  const [apisReturnScreen, setApisReturnScreen] = useState('main')
 
   const { state, startDebate, reset } = useSSE()
 
@@ -847,9 +854,8 @@ export default function App() {
     reset()
     setPrompt('')
     setAnimationCollapsed(false)
-    const hasAgents = activeIds.length > 0
-    setAppScreen(hasAgents ? 'main' : 'intro')
-    gtagPage(hasAgents ? '/main' : '/', hasAgents ? 'Think Tank' : 'Intro')
+    setAppScreen('main')
+    gtagPage('/main', 'Think Tank')
   }
 
   function handleReset() {
@@ -876,14 +882,6 @@ export default function App() {
 
       {/* Right panel — switches between screens */}
       <div className="flex-1 flex flex-col min-h-0 bg-ink overflow-hidden">
-
-        {/* Intro screen */}
-        {appScreen === 'intro' && (
-          <IntroScreen
-            onSupplyAPIs={handleSupplyAPIs}
-            onFreeTier={handleFreeTier}
-          />
-        )}
 
         {/* APIs screen */}
         {appScreen === 'apis' && (
