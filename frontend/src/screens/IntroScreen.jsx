@@ -7,7 +7,7 @@ export default function IntroScreen({ onSupplyAPIs, onFreeTier }) {
             onClick={onFreeTier}
             className="px-6 py-3 rounded-xl text-[16px] text-white transition-all whitespace-nowrap"
             style={{ background: '#342D37', transitionDuration: '500ms' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(184,115,174,0.15)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgb(var(--lead-rgb) / 0.15)' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#342D37' }}
           >
             Use Free Tiers
@@ -20,7 +20,7 @@ export default function IntroScreen({ onSupplyAPIs, onFreeTier }) {
             onClick={onSupplyAPIs}
             className="px-6 py-3 rounded-xl text-[16px] text-white transition-all whitespace-nowrap"
             style={{ background: '#342D37', transitionDuration: '500ms' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(184,115,174,0.15)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgb(var(--lead-rgb) / 0.15)' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#342D37' }}
           >
             Supply APIs

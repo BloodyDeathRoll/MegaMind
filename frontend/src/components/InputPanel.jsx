@@ -41,8 +41,8 @@ export default function InputPanel({
         className="rounded-2xl overflow-hidden transition-all duration-500"
         style={{
           background: '#252228',
-          border: `1px solid ${isFocused || hasTyped ? 'rgba(184,115,174,0.3)' : 'rgba(255,255,255,0.08)'}`,
-          boxShadow: isFocused || hasTyped ? '0 0 24px rgba(184,115,174,0.08)' : 'none',
+          border: `1px solid ${isFocused || hasTyped ? 'rgb(var(--lead-rgb) / 0.3)' : 'rgba(255,255,255,0.08)'}`,
+          boxShadow: isFocused || hasTyped ? '0 0 24px rgb(var(--lead-rgb) / 0.08)' : 'none',
         }}
       >
         <textarea
@@ -57,7 +57,7 @@ export default function InputPanel({
           disabled={isRunning}
           placeholder="Ask me anything…"
           style={{
-            caretColor: '#B873AE',
+            caretColor: 'var(--lead)',
             '--placeholder-opacity': isFocused || hasTyped ? '0.5' : '0.3',
           }}
         />
@@ -71,7 +71,7 @@ export default function InputPanel({
                 key={a.id}
                 className="text-xs px-3 py-1 rounded-full transition-all duration-300"
                 style={{
-                  color: on ? 'rgba(184,115,174,0.9)' : 'rgba(255,255,255,0.2)',
+                  color: on ? 'rgb(var(--lead-rgb) / 0.9)' : 'rgba(255,255,255,0.2)',
                 }}
               >
                 {a.name}
@@ -109,9 +109,9 @@ export default function InputPanel({
             onClick={handleSubmit}
             className="px-6 py-[7px] rounded-full text-[13px] font-medium transition-all duration-300"
             style={{
-              background: 'rgba(184,115,174,0.15)',
-              color: '#B873AE',
-              boxShadow: '0 0 16px rgba(184,115,174,0.12)',
+              background: 'rgb(var(--lead-rgb) / 0.15)',
+              color: 'var(--lead)',
+              boxShadow: '0 0 16px rgb(var(--lead-rgb) / 0.12)',
             }}
           >
             Think →
@@ -131,7 +131,7 @@ export default function InputPanel({
               {[2, 3, 4].map(n => (
                 <label key={n} className="flex items-center gap-2.5 cursor-pointer">
                   <input type="radio" name="rounds" value={n} checked={rounds === n}
-                    onChange={() => onRoundsChange(n)} style={{ accentColor: '#B873AE' }} />
+                    onChange={() => onRoundsChange(n)} style={{ accentColor: 'var(--lead)' }} />
                   <span className="text-white/55">{ROUND_LABELS[n]}</span>
                 </label>
               ))}
@@ -145,7 +145,7 @@ export default function InputPanel({
                   <input type="radio" name="synthesis" value={a.id}
                     checked={effectiveSynthesisId === a.id}
                     onChange={() => setSynthesisId(a.id)}
-                    style={{ accentColor: '#B873AE' }} />
+                    style={{ accentColor: 'var(--lead)' }} />
                   <span className="text-white/55">{a.name}</span>
                 </label>
               ))}

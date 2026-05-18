@@ -10,7 +10,7 @@ const mdComponents = {
   li:     ({ children }) => <li>{children}</li>,
   h1:     ({ children }) => <p className="font-semibold text-white/95 text-[20px] mt-6 mb-2">{children}</p>,
   h2:     ({ children }) => <p className="font-semibold text-white/90 text-[19px] mt-5 mb-2">{children}</p>,
-  h3:     ({ children }) => <p className="font-semibold text-[#B873AE]/80 text-[16px] uppercase tracking-wide mt-5 mb-2">{children}</p>,
+  h3:     ({ children }) => <p className="font-semibold text-lead/80 text-[16px] uppercase tracking-wide mt-5 mb-2">{children}</p>,
 }
 
 function splitSynthesis(text) {
@@ -37,10 +37,10 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 py-3"
-        style={{ background: 'rgba(184,115,174,0.07)' }}
+        style={{ background: 'rgb(var(--lead-rgb) / 0.07)' }}
       >
         <div className="flex items-center gap-2.5">
-          <span className="text-[13px] font-semibold" style={{ color: '#B873AE' }}>
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--lead)' }}>
             Synthesis
           </span>
           {isSynthesizing && (
@@ -49,7 +49,7 @@ export default function SynthesisPanel({ synthesis, totalTokens, totalCostUSD, s
                 <span
                   key={i}
                   className="w-[3px] rounded-full animate-pulse_dot"
-                  style={{ background: '#B873AE', height: `${8 + i * 3}px`, animationDelay: `${i * 0.2}s` }}
+                  style={{ background: 'var(--lead)', height: `${8 + i * 3}px`, animationDelay: `${i * 0.2}s` }}
                 />
               ))}
             </span>

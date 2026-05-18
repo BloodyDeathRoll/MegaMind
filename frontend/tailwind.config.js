@@ -8,10 +8,10 @@ export default {
       },
       colors: {
         ink: '#171518',
-        mauve: {
-          DEFAULT: '#B873AE',
-          dim: '#7a4d76',
-          glow: 'rgba(184,115,174,0.15)',
+        lead: {
+          DEFAULT: 'rgb(var(--lead-rgb) / <alpha-value>)',
+          dim: 'rgb(var(--lead-rgb) / 0.5)',
+          glow: 'rgb(var(--lead-rgb) / 0.15)',
         },
         claude: '#E07B39',
         gpt4:   '#10A37F',

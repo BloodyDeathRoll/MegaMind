@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --lead: #7C5CFC;
+  --lead-rgb: 124 92 252;
+}
+
 @layer base {
   html, body, #root {
     height: 100%;

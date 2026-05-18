@@ -21,7 +21,7 @@ function Toggle({ enabled, onToggle }) {
       style={{
         width: '32px',
         height: '16px',
-        background: enabled ? '#B873AE' : '#18161A',
+        background: enabled ? 'var(--lead)' : '#18161A',
         transitionDuration: '500ms',
       }}
       title={enabled ? 'Disable' : 'Enable'}
@@ -90,7 +90,7 @@ function APILine({ agent, apiKey, onKeyChange, enabled, onToggle, onRemove, isFr
               onChange={e => onKeyChange(e.target.value)}
               placeholder={agent.placeholder}
               className="flex-1 bg-transparent text-[13px] text-white/80 focus:outline-none min-w-0 mr-2"
-              style={{ caretColor: '#B873AE' }}
+              style={{ caretColor: 'var(--lead)' }}
             />
           )}
 
@@ -103,7 +103,7 @@ function APILine({ agent, apiKey, onKeyChange, enabled, onToggle, onRemove, isFr
                     onClick={() => setShowKey(v => !v)}
                     className="transition-colors"
                     style={{
-                      color: showKey ? 'rgba(184,115,174,0.8)' : 'rgba(255,255,255,0.25)',
+                      color: showKey ? 'rgb(var(--lead-rgb) / 0.8)' : 'rgba(255,255,255,0.25)',
                       transitionDuration: '500ms',
                     }}
                     title={showKey ? 'Hide key' : 'Show key'}
@@ -116,7 +116,7 @@ function APILine({ agent, apiKey, onKeyChange, enabled, onToggle, onRemove, isFr
                     onClick={handleCopy}
                     className="transition-colors"
                     style={{
-                      color: copied ? 'rgba(184,115,174,0.9)' : 'rgba(255,255,255,0.25)',
+                      color: copied ? 'rgb(var(--lead-rgb) / 0.9)' : 'rgba(255,255,255,0.25)',
                       transitionDuration: '500ms',
                     }}
                     title="Copy key"
@@ -258,7 +258,7 @@ export default function APIsScreen({ agents, initialKeys = {}, onSave, onBack })
                 <button
                   onClick={handleSave}
                   className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
-                  style={{ background: '#B873AE', transitionDuration: '500ms' }}
+                  style={{ background: 'var(--lead)', transitionDuration: '500ms' }}
                   onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
                   onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
                 >

@@ -109,12 +109,12 @@ function PhaseBar({ currentPhase, rounds, status }) {
             <span
               className="text-[11px] capitalize tracking-wide transition-colors flex items-center gap-1 whitespace-nowrap"
               style={{
-                color: isActive ? '#B873AE' : isCompleted ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.08)',
+                color: isActive ? 'var(--lead)' : isCompleted ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.08)',
                 transitionDuration: '500ms',
               }}
             >
               {isActive && (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-mauve animate-pulse_dot" />
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-lead animate-pulse_dot" />
               )}
               {isCompleted && !isActive && (
                 <IconCheck size={9} />
@@ -153,7 +153,7 @@ function LeftPanel({ collapsed = false, hasDebate = false, onReset, onTitleClick
           <button
             onClick={onReset}
             className="md:hidden pointer-events-auto px-5 py-2 rounded-full text-[13px] text-white transition-all"
-            style={{ background: '#B873AE', transitionDuration: '500ms' }}
+            style={{ background: 'var(--lead)', transitionDuration: '500ms' }}
             onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
             onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
           >
@@ -252,7 +252,7 @@ function MainInputArea({
           onClick={onToggleSettings}
           className="transition-colors"
           style={{
-            color: showSettings ? '#B873AE' : 'rgba(255,255,255,0.7)',
+            color: showSettings ? 'var(--lead)' : 'rgba(255,255,255,0.7)',
             transitionDuration: '500ms',
           }}
           title="Settings"
@@ -272,7 +272,7 @@ function MainInputArea({
           >
             <textarea
               ref={textareaRef}
-              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light placeholder:text-white/55"
+              className="w-full bg-transparent px-6 pt-5 pb-3 text-[18px] text-white/90 focus:outline-none resize-none leading-relaxed font-light placeholder:text-white/75"
               rows={1}
               value={prompt}
               onChange={e => {
@@ -282,7 +282,7 @@ function MainInputArea({
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
               disabled={isRunning}
               placeholder="Ask me anything profound"
-              style={{ caretColor: '#B873AE', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflowY: 'hidden' }}
+              style={{ caretColor: 'var(--lead)', direction: isRTL(prompt) ? 'rtl' : 'ltr', textAlign: isRTL(prompt) ? 'right' : 'left', overflowY: 'hidden' }}
             />
 
             {/* Bottom bar — grid trick: animates height without clipping padding */}
@@ -308,7 +308,7 @@ function MainInputArea({
                       disabled={!canSubmit}
                       className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
                       style={{
-                        background: canSubmit ? '#B873AE' : 'rgb(68,55,66)',
+                        background: canSubmit ? 'var(--lead)' : 'rgb(68,55,66)',
                         transitionDuration: '500ms',
                       }}
                       onMouseEnter={e => { if (canSubmit) e.currentTarget.style.opacity = '0.85' }}
@@ -349,7 +349,7 @@ function MainInputArea({
                       <input
                         type="radio" name="rounds" value={n}
                         checked={rounds === n} onChange={() => onRoundsChange(n)}
-                        style={{ accentColor: '#B873AE' }}
+                        style={{ accentColor: 'var(--lead)' }}
                       />
                       <span style={{ color: 'rgba(255,255,255,0.55)' }}>{label}</span>
                     </label>
@@ -367,7 +367,7 @@ function MainInputArea({
                         type="radio" name="synthesis" value={a.id}
                         checked={effectiveSynthesisId === a.id}
                         onChange={() => setSynthesisId(a.id)}
-                        style={{ accentColor: '#B873AE' }}
+                        style={{ accentColor: 'var(--lead)' }}
                       />
                       <span style={{ color: 'rgba(255,255,255,0.55)' }}>{a.name}</span>
                     </label>
@@ -389,7 +389,7 @@ function MainInputArea({
                 <button
                   onClick={onEditAPIs}
                   className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
-                  style={{ background: '#B873AE', transitionDuration: '500ms' }}
+                  style={{ background: 'var(--lead)', transitionDuration: '500ms' }}
                   onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
                   onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
                 >
@@ -419,7 +419,7 @@ function MainInputArea({
           )}
 
           {/* API hint */}
-          <p className="text-center mt-3 text-[12px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
+          <p className="text-center mt-3 text-[16px]" style={{ color: 'rgba(255,255,255,0.65)' }}>
             You can add APIs inside the settings
           </p>
         </div>
@@ -440,14 +440,14 @@ function MainInputArea({
         {suggestions.map((s, i) => (
           <span key={s} className="flex items-center gap-3">
             {i > 0 && (
-              <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px' }}>|</span>
+              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px' }}>|</span>
             )}
             <button
               onClick={() => onPromptChange(s)}
-              className="text-[13px] whitespace-nowrap transition-colors"
-              style={{ color: 'rgba(255,255,255,0.45)', transitionDuration: '500ms' }}
-              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.8)' }}
-              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.45)' }}
+              className="text-[16px] whitespace-nowrap transition-colors"
+              style={{ color: 'rgba(255,255,255,0.65)', transitionDuration: '500ms' }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.95)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.65)' }}
             >
               {s}
             </button>
@@ -484,7 +484,7 @@ function MainInputArea({
               <button
                 onClick={() => { onToggleAgent(confirmToggleId); setConfirmToggleId(null) }}
                 className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
-                style={{ background: '#B873AE', transitionDuration: '300ms' }}
+                style={{ background: 'var(--lead)', transitionDuration: '300ms' }}
                 onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
                 onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
               >
@@ -517,8 +517,8 @@ function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
 
   return (
     <div className="rounded-2xl overflow-hidden animate-fadein" style={{ background: '#1a181b' }}>
-      <div className="flex items-center justify-between px-5 py-3" style={{ background: 'rgba(184,115,174,0.07)' }}>
-        <span className="text-[13px] font-semibold" style={{ color: '#B873AE' }}>Synthesis</span>
+      <div className="flex items-center justify-between px-5 py-3" style={{ background: 'rgb(var(--lead-rgb) / 0.07)' }}>
+        <span className="text-[13px] font-semibold" style={{ color: 'var(--lead)' }}>Synthesis</span>
         <span className="text-[11px] capitalize" style={{ color: 'rgba(255,255,255,0.25)' }}>
           {currentPhase}…
         </span>
@@ -529,7 +529,7 @@ function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
         <div className="h-[2px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${progressPct}%`, background: '#B873AE', transitionDuration: '800ms' }}
+            style={{ width: `${progressPct}%`, background: 'var(--lead)', transitionDuration: '800ms' }}
           />
         </div>
 
@@ -547,7 +547,7 @@ function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
                       <span
                         key={i}
                         className="w-[2px] rounded-full animate-pulse_dot"
-                        style={{ background: '#B873AE', height: `${6 + i * 2}px`, animationDelay: `${i * 0.2}s` }}
+                        style={{ background: 'var(--lead)', height: `${6 + i * 2}px`, animationDelay: `${i * 0.2}s` }}
                       />
                     ))}
                   </span>
@@ -555,7 +555,7 @@ function DebateProgress({ currentPhase, activeAgents, agentsDone, rounds }) {
                 <span style={{ color: done ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.65)' }}>
                   {agent.name}
                 </span>
-                <span style={{ color: done ? 'rgba(255,255,255,0.15)' : 'rgba(184,115,174,0.65)' }}>
+                <span style={{ color: done ? 'rgba(255,255,255,0.15)' : 'rgb(var(--lead-rgb) / 0.65)' }}>
                   {done ? 'done' : verb}
                 </span>
               </div>
@@ -620,7 +620,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
         <button
           onClick={onReset}
           className="absolute right-6 hidden md:block px-5 py-2 rounded-full text-[13px] text-white transition-all"
-          style={{ background: '#B873AE', transitionDuration: '500ms' }}
+          style={{ background: 'var(--lead)', transitionDuration: '500ms' }}
           onMouseEnter={e => { e.currentTarget.style.opacity = '0.8' }}
           onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
         >
@@ -733,7 +733,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
                   onChange={e => setFollowUp(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleContinue() } }}
                   placeholder="Ask a follow-up..."
-                  style={{ caretColor: '#B873AE' }}
+                  style={{ caretColor: 'var(--lead)' }}
                 />
                 <div style={{ display: 'grid', gridTemplateRows: followUp ? '1fr' : '0fr', transition: 'grid-template-rows 400ms ease' }}>
                   <div style={{ overflow: 'hidden' }}>
@@ -741,7 +741,7 @@ function DebateRightPanel({ agents, activeIds, state, rounds, onReset, onContinu
                       <button
                         onClick={handleContinue}
                         className="px-5 py-2 rounded-full text-[13px] text-white transition-all"
-                        style={{ background: '#B873AE', transitionDuration: '500ms' }}
+                        style={{ background: 'var(--lead)', transitionDuration: '500ms' }}
                         onMouseEnter={e => { e.currentTarget.style.opacity = '0.85' }}
                         onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
                       >
